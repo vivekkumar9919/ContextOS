@@ -5,9 +5,13 @@
   "bin": {
     "contextos": "./dist/index.js"
   },
+  "scripts": {
+    "build": "tsc"
+  },
   "dependencies": {
     "@contextos/core": "*",
     "@contextos/storage": "*",
-    "@contextos/git": "*"
+    "@contextos/git": "*",
+    "@contextos/context-builder": "*"
   }
 }

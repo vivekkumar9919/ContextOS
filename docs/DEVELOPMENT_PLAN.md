@@ -144,8 +144,8 @@ pnpm --filter @contextos/context-builder test
 * Enable clipboard integration for seamless pasting into web chats.
 
 ### Deliverables
-- [ ] `contextos` executable binary (`commander` or `cac` CLI framework).
-- [ ] CLI Commands:
+- [x] `contextos` executable binary (built-in zero-dependency CLI framework).
+- [x] CLI Commands:
   - `contextos init [--local]`: Initializes local or global ContextOS home.
   - `contextos status`: Shows current active project, task, and git branch.
   - `contextos task <create|update|complete|clear>`: Manages task lifecycle.
@@ -157,10 +157,10 @@ pnpm --filter @contextos/context-builder test
 ```bash
 contextos --help
 ```
-- [ ] `contextos init` creates `~/.contextos/` and initializes `context.db`.
-- [ ] `contextos task create --title "Auth Feature" --goal "JWT Auth"` stores the task and sets status to `IN_PROGRESS`.
-- [ ] `contextos handoff` writes `.contextos/handoffs/latest.md` and populates the OS clipboard (`pbcopy` / system clipboard).
-- [ ] `contextos clean --project` wipes only the active project without corrupting other registered projects.
+- [x] `contextos init` creates `~/.contextos/` and initializes `context.db`.
+- [x] `contextos task create --title "Auth Feature" --goal "JWT Auth"` stores the task and sets status to `IN_PROGRESS`.
+- [x] `contextos handoff` writes `.contextos/handoffs/latest.md` and populates the OS clipboard (`pbcopy` / system clipboard).
+- [x] `contextos clean --project` wipes only the active project without corrupting other registered projects.
 
 ---
 

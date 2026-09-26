@@ -170,8 +170,8 @@ contextos --help
 * Allow autonomous coding agents (Claude Code, Cursor, Codex) to interact directly with ContextOS via standard I/O.
 
 ### Deliverables
-- [ ] **`@contextos/mcp`**:
-  - Stdio JSON-RPC transport implementation via `@modelcontextprotocol/sdk`.
+- [x] **`@contextos/mcp`**:
+  - Stdio JSON-RPC transport implementation conforming to MCP 2024-11-05 protocol.
   - Tool Handlers:
     - `get_current_task`
     - `save_context`
@@ -184,10 +184,10 @@ contextos --help
 ```bash
 npx @modelcontextprotocol/inspector node packages/mcp/dist/index.js
 ```
-- [ ] MCP Inspector connects over stdio and lists all 5 tools.
-- [ ] Calling `save_context` with `{ title: "New Task" }` creates record in SQLite.
-- [ ] Calling `get_current_task` returns the newly created task.
-- [ ] Calling `create_handoff` returns the markdown payload and token estimate.
+- [x] MCP Inspector connects over stdio and lists all 5 tools.
+- [x] Calling `save_context` with `{ title: "New Task" }` creates record in SQLite.
+- [x] Calling `get_current_task` returns the newly created task.
+- [x] Calling `create_handoff` returns the markdown payload and token estimate.
 
 ---
 
