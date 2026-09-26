@@ -49,9 +49,9 @@ Phase 6: End-to-End Workflow Validation (Claude ➔ Codex Loop)
   - `apps/cli`
 
 ### Phase 0 Verification Checklist
-- [x] `pnpm install` succeeds without dependency errors or peer conflicts.
-- [x] `pnpm build` executes cleanly across all package skeletons.
-- [x] Vitest test runner executes and reports 0 failed suites.
+- [ ] `pnpm install` succeeds without dependency errors or peer conflicts.
+- [ ] `pnpm build` executes cleanly across all package skeletons.
+- [ ] Vitest test runner executes and reports 0 failed suites.
 
 ---
 
@@ -63,11 +63,11 @@ Phase 6: End-to-End Workflow Validation (Claude ➔ Codex Loop)
 * Implement repository layer for Tasks, Decisions, and Projects with DAG-based decision supersession.
 
 ### Deliverables
-- [x] **`@contextos/core`**:
+- [ ] **`@contextos/core`**:
   - `Project`, `Session`, `Task`, `Decision`, `Issue`, `FileChange`, `Handoff` models.
   - Zod schemas with strict validation rules.
   - Domain error types (`ValidationError`, `EntityNotFoundError`, `CycleDetectedError`).
-- [x] **`@contextos/storage`**:
+- [ ] **`@contextos/storage`**:
   - `connection.ts`: `getDatabase()` singleton with `WAL` mode, `foreign_keys = ON`, `busy_timeout = 5000`.
   - Path resolver: Auto-detecting `~/.contextos/` or local `.contextos/`.
   - `migrator.ts`: `_migrations` tracking table and `001_initial_schema.sql`.
@@ -80,11 +80,11 @@ Phase 6: End-to-End Workflow Validation (Claude ➔ Codex Loop)
 pnpm --filter @contextos/storage test
 pnpm --filter @contextos/core test
 ```
-- [x] **Schema Auto-Creation**: Deleting `~/.contextos/context.db` and running test auto-creates database and applies `001_initial_schema` without errors.
-- [x] **WAL Mode Active**: `PRAGMA journal_mode;` returns `wal`.
-- [x] **Foreign Key Enforcement**: Deleting a project cascades and deletes associated tasks and decisions.
-- [x] **Task Status Invariant**: Tasks enforce valid statuses (`BACKLOG`, `IN_PROGRESS`, `BLOCKED`, `COMPLETED`).
-- [x] **Decision Supersession DAG**:
+- [ ] **Schema Auto-Creation**: Deleting `~/.contextos/context.db` and running test auto-creates database and applies `001_initial_schema` without errors.
+- [ ] **WAL Mode Active**: `PRAGMA journal_mode;` returns `wal`.
+- [ ] **Foreign Key Enforcement**: Deleting a project cascades and deletes associated tasks and decisions.
+- [ ] **Task Status Invariant**: Tasks enforce valid statuses (`BACKLOG`, `IN_PROGRESS`, `BLOCKED`, `COMPLETED`).
+- [ ] **Decision Supersession DAG**:
   - Creating Decision A, then Decision B (superseding A) sets Decision A to `SUPERSEDED` and Decision B to `ACTIVE`.
   - Attempting to make Decision A supersede Decision B throws `CycleDetectedError`.
 
@@ -98,7 +98,7 @@ pnpm --filter @contextos/core test
 * Screen diffs and code references for sensitive secrets before saving.
 
 ### Deliverables
-- [x] **`@contextos/git`**:
+- [ ] **`@contextos/git`**:
   - `GitClient`: Fast execution of `git status --porcelain`, `git diff`, `git rev-parse`.
   - `DiffFilter`: Exclusion glob matcher (ignoring `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `dist/`, `.next/`, `*.map`).
   - Line truncation logic: Individual file diffs capped at 150 lines; total diffs capped at 1,000 lines with statistical fallback summary (`+X lines, -Y lines`).
@@ -108,10 +108,10 @@ pnpm --filter @contextos/core test
 ```bash
 pnpm --filter @contextos/git test
 ```
-- [x] **Dirty State Detection**: Modifying a test file is accurately reported with branch name and HEAD commit hash.
-- [x] **Noise Filter**: Modifying `package-lock.json` alongside `src/index.ts` excludes `package-lock.json` from the output diff.
-- [x] **Diff Budget Capping**: A simulated diff of 500 lines on a single file is truncated with summary statistics.
-- [x] **Secret Redaction**: Passing a string containing `sk-abcdef12345678901234567890` or `-----BEGIN RSA PRIVATE KEY-----` replaces the secret with `[REDACTED SECRET DETECTED]`.
+- [ ] **Dirty State Detection**: Modifying a test file is accurately reported with branch name and HEAD commit hash.
+- [ ] **Noise Filter**: Modifying `package-lock.json` alongside `src/index.ts` excludes `package-lock.json` from the output diff.
+- [ ] **Diff Budget Capping**: A simulated diff of 500 lines on a single file is truncated with summary statistics.
+- [ ] **Secret Redaction**: Passing a string containing `sk-abcdef12345678901234567890` or `-----BEGIN RSA PRIVATE KEY-----` replaces the secret with `[REDACTED SECRET DETECTED]`.
 
 ---
 
@@ -122,7 +122,7 @@ pnpm --filter @contextos/git test
 * Package structured state into a bounded, high-density handoff document.
 
 ### Deliverables
-- [x] **`@contextos/context-builder`**:
+- [ ] **`@contextos/context-builder`**:
   - `BudgetAllocator`: Tiered budget priority ladder (Tier 0 mandatory to Tier 3 enrichers, 4,000 token target).
   - `MarkdownFormatter`: Formats task specification, invariants, active decisions, git diff, and blockers into `.contextos/handoffs/latest.md`.
   - Handoff archiver: Saves timestamped snapshot (e.g., `2026-09-26T14-30-00_claude_to_codex.md`).
@@ -131,9 +131,9 @@ pnpm --filter @contextos/git test
 ```bash
 pnpm --filter @contextos/context-builder test
 ```
-- [x] **Markdown Compliance**: Generated `latest.md` strictly adheres to the format specified in TRD Section 5.2.
-- [x] **Superseded Invariant**: Superseded decisions are never included under "Active Architectural Decisions".
-- [x] **Budget Adherence**: A heavy context with 20 issues and long diffs is trimmed to remain under the 4,000-token budget ceiling without losing Tier 0 items.
+- [ ] **Markdown Compliance**: Generated `latest.md` strictly adheres to the format specified in TRD Section 5.2.
+- [ ] **Superseded Invariant**: Superseded decisions are never included under "Active Architectural Decisions".
+- [ ] **Budget Adherence**: A heavy context with 20 issues and long diffs is trimmed to remain under the 4,000-token budget ceiling without losing Tier 0 items.
 
 ---
 
@@ -144,8 +144,8 @@ pnpm --filter @contextos/context-builder test
 * Enable clipboard integration for seamless pasting into web chats.
 
 ### Deliverables
-- [ ] `contextos` executable binary (`commander` or `cac` CLI framework).
-- [ ] CLI Commands:
+- [x] `contextos` executable binary (built-in zero-dependency CLI framework).
+- [x] CLI Commands:
   - `contextos init [--local]`: Initializes local or global ContextOS home.
   - `contextos status`: Shows current active project, task, and git branch.
   - `contextos task <create|update|complete|clear>`: Manages task lifecycle.
@@ -157,10 +157,10 @@ pnpm --filter @contextos/context-builder test
 ```bash
 contextos --help
 ```
-- [ ] `contextos init` creates `~/.contextos/` and initializes `context.db`.
-- [ ] `contextos task create --title "Auth Feature" --goal "JWT Auth"` stores the task and sets status to `IN_PROGRESS`.
-- [ ] `contextos handoff` writes `.contextos/handoffs/latest.md` and populates the OS clipboard (`pbcopy` / system clipboard).
-- [ ] `contextos clean --project` wipes only the active project without corrupting other registered projects.
+- [x] `contextos init` creates `~/.contextos/` and initializes `context.db`.
+- [x] `contextos task create --title "Auth Feature" --goal "JWT Auth"` stores the task and sets status to `IN_PROGRESS`.
+- [x] `contextos handoff` writes `.contextos/handoffs/latest.md` and populates the OS clipboard (`pbcopy` / system clipboard).
+- [x] `contextos clean --project` wipes only the active project without corrupting other registered projects.
 
 ---
 
