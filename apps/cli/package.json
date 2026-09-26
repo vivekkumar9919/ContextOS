@@ -1,0 +1,13 @@
+{
+  "name": "contextos",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": {
+    "contextos": "./dist/index.js"
+  },
+  "dependencies": {
+    "@contextos/core": "*",
+    "@contextos/storage": "*",
+    "@contextos/git": "*"
+  }
+}

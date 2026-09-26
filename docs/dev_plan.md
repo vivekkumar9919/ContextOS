@@ -49,9 +49,9 @@ Phase 6: End-to-End Workflow Validation (Claude ➔ Codex Loop)
   - `apps/cli`
 
 ### Phase 0 Verification Checklist
-- [ ] `pnpm install` succeeds without dependency errors or peer conflicts.
-- [ ] `pnpm build` executes cleanly across all package skeletons.
-- [ ] Vitest test runner executes and reports 0 failed suites.
+- [x] `pnpm install` succeeds without dependency errors or peer conflicts.
+- [x] `pnpm build` executes cleanly across all package skeletons.
+- [x] Vitest test runner executes and reports 0 failed suites.
 
 ---
 
@@ -63,11 +63,11 @@ Phase 6: End-to-End Workflow Validation (Claude ➔ Codex Loop)
 * Implement repository layer for Tasks, Decisions, and Projects with DAG-based decision supersession.
 
 ### Deliverables
-- [ ] **`@contextos/core`**:
+- [x] **`@contextos/core`**:
   - `Project`, `Session`, `Task`, `Decision`, `Issue`, `FileChange`, `Handoff` models.
   - Zod schemas with strict validation rules.
   - Domain error types (`ValidationError`, `EntityNotFoundError`, `CycleDetectedError`).
-- [ ] **`@contextos/storage`**:
+- [x] **`@contextos/storage`**:
   - `connection.ts`: `getDatabase()` singleton with `WAL` mode, `foreign_keys = ON`, `busy_timeout = 5000`.
   - Path resolver: Auto-detecting `~/.contextos/` or local `.contextos/`.
   - `migrator.ts`: `_migrations` tracking table and `001_initial_schema.sql`.
@@ -80,11 +80,11 @@ Phase 6: End-to-End Workflow Validation (Claude ➔ Codex Loop)
 pnpm --filter @contextos/storage test
 pnpm --filter @contextos/core test
 ```
-- [ ] **Schema Auto-Creation**: Deleting `~/.contextos/context.db` and running test auto-creates database and applies `001_initial_schema` without errors.
-- [ ] **WAL Mode Active**: `PRAGMA journal_mode;` returns `wal`.
-- [ ] **Foreign Key Enforcement**: Deleting a project cascades and deletes associated tasks and decisions.
-- [ ] **Task Status Invariant**: Tasks enforce valid statuses (`BACKLOG`, `IN_PROGRESS`, `BLOCKED`, `COMPLETED`).
-- [ ] **Decision Supersession DAG**:
+- [x] **Schema Auto-Creation**: Deleting `~/.contextos/context.db` and running test auto-creates database and applies `001_initial_schema` without errors.
+- [x] **WAL Mode Active**: `PRAGMA journal_mode;` returns `wal`.
+- [x] **Foreign Key Enforcement**: Deleting a project cascades and deletes associated tasks and decisions.
+- [x] **Task Status Invariant**: Tasks enforce valid statuses (`BACKLOG`, `IN_PROGRESS`, `BLOCKED`, `COMPLETED`).
+- [x] **Decision Supersession DAG**:
   - Creating Decision A, then Decision B (superseding A) sets Decision A to `SUPERSEDED` and Decision B to `ACTIVE`.
   - Attempting to make Decision A supersede Decision B throws `CycleDetectedError`.
 
@@ -102,11 +102,11 @@ pnpm --filter @contextos/core test
   - `GitClient`: Fast execution of `git status --porcelain`, `git diff`, `git rev-parse`.
   - `DiffFilter`: Exclusion glob matcher (ignoring `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `dist/`, `.next/`, `*.map`).
   - Line truncation logic: Individual file diffs capped at 150 lines; total diffs capped at 1,000 lines with statistical fallback summary (`+X lines, -Y lines`).
-  - `SecretScanner`: High-entropy regex scanner identifying API keys (OpenAI, GitHub, AWS, private keys) and redacting them with `[REDACTED SECRET DETECTED]`.
+  - `SecretScreen`: High-entropy regex scanner identifying API keys (OpenAI, GitHub, AWS, private keys) and redacting them with `[REDACTED SECRET DETECTED]`.
 
 ### Phase 2 Verification Checklist
 ```bash
-npm test
+pnpm --filter @contextos/git test
 ```
 - [x] **Dirty State Detection**: Modifying a test file is accurately reported with branch name and HEAD commit hash.
 - [x] **Noise Filter**: Modifying `package-lock.json` alongside `src/index.ts` excludes `package-lock.json` from the output diff.
@@ -122,7 +122,7 @@ npm test
 * Package structured state into a bounded, high-density handoff document.
 
 ### Deliverables
-- [ ] **`@contextos/context-builder`**:
+- [x] **`@contextos/context-builder`**:
   - `BudgetAllocator`: Tiered budget priority ladder (Tier 0 mandatory to Tier 3 enrichers, 4,000 token target).
   - `MarkdownFormatter`: Formats task specification, invariants, active decisions, git diff, and blockers into `.contextos/handoffs/latest.md`.
   - Handoff archiver: Saves timestamped snapshot (e.g., `2026-09-26T14-30-00_claude_to_codex.md`).
@@ -131,9 +131,9 @@ npm test
 ```bash
 pnpm --filter @contextos/context-builder test
 ```
-- [ ] **Markdown Compliance**: Generated `latest.md` strictly adheres to the format specified in TRD Section 5.2.
-- [ ] **Superseded Invariant**: Superseded decisions are never included under "Active Architectural Decisions".
-- [ ] **Budget Adherence**: A heavy context with 20 issues and long diffs is trimmed to remain under the 4,000-token budget ceiling without losing Tier 0 items.
+- [x] **Markdown Compliance**: Generated `latest.md` strictly adheres to the format specified in TRD Section 5.2.
+- [x] **Superseded Invariant**: Superseded decisions are never included under "Active Architectural Decisions".
+- [x] **Budget Adherence**: A heavy context with 20 issues and long diffs is trimmed to remain under the 4,000-token budget ceiling without losing Tier 0 items.
 
 ---
 

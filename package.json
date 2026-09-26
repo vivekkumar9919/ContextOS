@@ -1,0 +1,20 @@
+{
+  "name": "contextos-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A local context and handoff layer for AI coding agents",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=@contextos/core && npm run build --workspace=@contextos/git && npm run build --workspace=@contextos/storage && npm run build --workspace=@contextos/context-builder",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}
