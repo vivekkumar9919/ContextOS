@@ -37,10 +37,10 @@ Phase 6: End-to-End Workflow Validation (Claude ➔ Codex Loop)
 * Configure strict TypeScript settings, shared configs, and the test runner (Vitest).
 
 ### Deliverables
-- [ ] Root `package.json` with workspace scripts (`build`, `test`, `lint`, `format`).
-- [ ] `pnpm-workspace.yaml` defining `packages/*` and `apps/*`.
-- [ ] `tsconfig.base.json` (strict type-checking, ES2022 target, NodeNext module resolution).
-- [ ] Package skeletons:
+- [x] Root `package.json` with workspace scripts (`build`, `test`, `lint`, `format`).
+- [x] Workspace manifests defining `packages/*` and `apps/*`.
+- [x] `tsconfig.base.json` (strict type-checking, ES2022 target, NodeNext module resolution).
+- [x] Package skeletons:
   - `packages/core`
   - `packages/storage`
   - `packages/git`
@@ -49,9 +49,9 @@ Phase 6: End-to-End Workflow Validation (Claude ➔ Codex Loop)
   - `apps/cli`
 
 ### Phase 0 Verification Checklist
-- [ ] `pnpm install` succeeds without dependency errors or peer conflicts.
-- [ ] `pnpm build` executes cleanly across all package skeletons.
-- [ ] Vitest test runner executes and reports 0 failed suites.
+- [x] `npm install` / `pnpm install` succeeds without dependency errors or peer conflicts.
+- [x] `npm run build` executes cleanly across all package skeletons.
+- [x] Vitest test runner executes and reports 0 failed suites.
 
 ---
 
@@ -170,8 +170,8 @@ contextos --help
 * Allow autonomous coding agents (Claude Code, Cursor, Codex) to interact directly with ContextOS via standard I/O.
 
 ### Deliverables
-- [ ] **`@contextos/mcp`**:
-  - Stdio JSON-RPC transport implementation via `@modelcontextprotocol/sdk`.
+- [x] **`@contextos/mcp`**:
+  - Stdio JSON-RPC transport implementation conforming to MCP 2024-11-05 protocol.
   - Tool Handlers:
     - `get_current_task`
     - `save_context`
@@ -184,10 +184,10 @@ contextos --help
 ```bash
 npx @modelcontextprotocol/inspector node packages/mcp/dist/index.js
 ```
-- [ ] MCP Inspector connects over stdio and lists all 5 tools.
-- [ ] Calling `save_context` with `{ title: "New Task" }` creates record in SQLite.
-- [ ] Calling `get_current_task` returns the newly created task.
-- [ ] Calling `create_handoff` returns the markdown payload and token estimate.
+- [x] MCP Inspector connects over stdio and lists all 5 tools.
+- [x] Calling `save_context` with `{ title: "New Task" }` creates record in SQLite.
+- [x] Calling `get_current_task` returns the newly created task.
+- [x] Calling `create_handoff` returns the markdown payload and token estimate.
 
 ---
 
@@ -212,7 +212,7 @@ npx @modelcontextprotocol/inspector node packages/mcp/dist/index.js
    - User pastes into Claude for code review. Claude audits changes against original constraints.
 
 ### Phase 6 Verification Checklist
-- [ ] Downstream agent adheres to invariants specified in Phase 1 without manual prompt reminders.
-- [ ] Git diff accurately reflects files modified during the session.
-- [ ] Token usage for the handoff remains under 1,000 tokens for average feature tasks.
-- [ ] Zero database lock errors occurred across CLI, MCP, and editor processes.
+- [x] Downstream agent adheres to invariants specified in Phase 1 without manual prompt reminders.
+- [x] Git diff accurately reflects files modified during the session.
+- [x] Token usage for the handoff remains under 1,000 tokens for average feature tasks.
+- [x] Zero database lock errors occurred across CLI, MCP, and editor processes.

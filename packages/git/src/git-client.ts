@@ -156,6 +156,8 @@ export class GitClient {
     const diffArgs = ['diff', '-U3'];
     if (options.baseCommit) {
       diffArgs.push(options.baseCommit);
+    } else if (head) {
+      diffArgs.push('HEAD');
     }
     if (options.files && options.files.length > 0) {
       diffArgs.push('--', ...options.files);
