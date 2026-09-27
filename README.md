@@ -121,15 +121,21 @@ Add to your Antigravity MCP configuration:
 
 ---
 
-## MCP Tools Reference
+## Complete MCP Tool Suite (100% Terminal CLI Parity)
 
-| Tool | When to Use | Sample Chat Prompt |
-| :--- | :--- | :--- |
-| **`get_current_task`** | Starting work or loading a Jira ticket | *"Use ContextOS `get_current_task` with jiraId 'TEST-100' to fetch requirements."* |
-| **`save_context`** | Checking off items or recording blockers | *"Mark 'Verify lookup' as complete using ContextOS `save_context`."* |
-| **`record_decision`** | Locking in architecture patterns | *"Record decision in ContextOS: Title 'Use SQLite WAL', Rationale 'High concurrency'."* |
-| **`get_git_context`** | Checking branch & noise-filtered diff | *"Use `get_git_context` to check modified files and branch status."* |
-| **`create_handoff`** | Handing off to reviewer or next agent | *"Create a handoff for Claude review using ContextOS `create_handoff`."* |
+| Tool | CLI Equivalent | When to Use | Sample Chat Prompt |
+| :--- | :--- | :--- | :--- |
+| **`get_status`** | `contextos status` | Full status overview of project, git, task & decisions | *"Run ContextOS `get_status` to see current project status."* |
+| **`get_current_task`** | `contextos task get` | Fetch active task or Jira ticket context | *"Use ContextOS `get_current_task` with jiraId 'TEST-100'."* |
+| **`create_task`** | `contextos task create` | Create a new active task with invariants & checklist | *"Create a task in ContextOS: Title 'Auth Module', Goal 'JWT'."* |
+| **`save_context`** | `contextos task update/complete/clear` | Update progress, mark items complete, clear blockers | *"Mark 'Verify lookup' as complete using ContextOS `save_context`."* |
+| **`list_tasks`** | `contextos task list` | Query recorded tasks by status or Jira ticket | *"List all tasks in ContextOS with status 'IN_PROGRESS'."* |
+| **`record_decision`** | `contextos decision add/supersede` | Lock in architectural decisions & invariants | *"Record decision in ContextOS: Title 'Use SQLite WAL', Rationale 'Concurrency'."* |
+| **`list_decisions`** | `contextos decision list` | Inspect all active and superseded decisions | *"List all active architectural decisions in ContextOS."* |
+| **`list_projects`** | `contextos projects` | Query all registered projects across storage | *"List all registered projects in ContextOS."* |
+| **`get_git_context`** | Git tree & diff inspection | Inspect branch & noise-filtered diff | *"Use `get_git_context` to check modified files and branch status."* |
+| **`create_handoff`** | `contextos handoff` | Compile bounded markdown brief & archive | *"Create a handoff for Claude review using ContextOS `create_handoff`."* |
+| **`clean_context`** | `contextos clean` | Mark active task completed or clear project state | *"Clean active task in ContextOS by marking it completed."* |
 
 ---
 

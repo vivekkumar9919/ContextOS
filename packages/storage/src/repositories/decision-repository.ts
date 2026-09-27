@@ -73,6 +73,22 @@ export class DecisionRepository {
     return rows.map((r) => this.mapRow(r));
   }
 
+  public listAll(options?: { status?: string; limit?: number }): Decision[] {
+    let sql = 'SELECT * FROM decisions';
+    const params: any[] = [];
+    if (options?.status) {
+      sql += ' WHERE status = ?';
+      params.push(options.status);
+    }
+    sql += ' ORDER BY created_at DESC';
+    if (options?.limit) {
+      sql += ' LIMIT ?';
+      params.push(options.limit);
+    }
+    const rows = this.db.prepare(sql).all(...params) as any[];
+    return rows.map((r) => this.mapRow(r));
+  }
+
   public supersede(oldId: string, newId: string): void {
     const oldDecision = this.findById(oldId);
     if (!oldDecision) {

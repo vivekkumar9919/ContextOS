@@ -208,17 +208,23 @@ claude mcp add contextos -- node /Users/YOUR_USER/Documents/projects/ContextOS/p
 
 ---
 
-## 4. MCP Tool Reference & Chat Prompting
+## 4. Complete MCP Tool Suite (100% Terminal CLI Parity)
 
-Once registered in any of the above IDEs, your AI agents have access to these **5 tools**. Here is how to prompt agents to use them:
+ContextOS exposes **11 standard tools** over MCP, ensuring that **every single action possible via terminal CLI commands can also be performed natively by AI agents via MCP in chat**:
 
-| Tool | When the Agent Uses It | Example Chat Prompt |
-| :--- | :--- | :--- |
-| **`get_current_task`** | Starting work or picking up a task | *"Use ContextOS `get_current_task` with jiraId 'TEST-100' to load my requirements."* |
-| **`save_context`** | Completing checklist items or logging blockers | *"Mark 'Verify cross-database lookup' as complete using ContextOS `save_context`."* |
-| **`record_decision`** | Choosing an architecture, library, or design invariant | *"Record an architectural decision in ContextOS: Title 'Use Redis for caching', Rationale 'Reduces database load'."* |
-| **`get_git_context`** | Inspecting touched files, branch, and diff | *"Use `get_git_context` to see what code changes have been made in this branch."* |
-| **`create_handoff`** | Handing off work to another agent or human review | *"Create a handoff for Claude review using ContextOS `create_handoff`."* |
+| MCP Tool | Terminal CLI Equivalent | When the Agent Uses It | Example Chat Prompt |
+| :--- | :--- | :--- | :--- |
+| **`get_status`** | `contextos status [--global]` | Consolidated status dashboard (project, storage, git, active task, decisions) | *"Run ContextOS `get_status` to inspect our project state and active tasks."* |
+| **`get_current_task`** | `contextos task get [--jira <id>]` | Read active task requirements, constraints, checklist (auto cross-DB fallback) | *"Use `get_current_task` with jiraId 'TEST-100' to fetch requirements."* |
+| **`create_task`** | `contextos task create` | Create a new active task with title, goal, Jira ticket, invariants, and checklist | *"Create a task in ContextOS: Title 'Auth Module', Goal 'JWT Auth', jiraId 'TEST-102'."* |
+| **`save_context`** | `contextos task update / complete / clear` | Complete checklist items, record next remaining steps, update or clear blockers | *"Mark 'Verify token signature' as complete using ContextOS `save_context`."* |
+| **`list_tasks`** | `contextos task list [--global]` | List all recorded tasks with their status, checklist progress, and Jira tickets | *"List all tasks in ContextOS with status 'IN_PROGRESS'."* |
+| **`record_decision`** | `contextos decision add / supersede` | Lock in architectural invariants with DAG cycle checks and supersession | *"Record decision in ContextOS: Title 'Use Redis for sessions', Rationale 'Low latency'."* |
+| **`list_decisions`** | `contextos decision list [--global]` | Query all active or superseded architectural decisions | *"List all active architectural decisions in ContextOS."* |
+| **`list_projects`** | `contextos projects [--global]` | Query all registered projects and their active tasks across storage | *"List all registered projects in ContextOS."* |
+| **`get_git_context`** | Git tree & diff inspection | Inspect branch name, modified/added/deleted files, and noise-filtered diffs | *"Call `get_git_context` to see what code changes have been made in this branch."* |
+| **`create_handoff`** | `contextos handoff` | Compile bounded Markdown brief to `.contextos/handoffs/latest.md` & archive | *"Compile a handoff for Claude review using ContextOS `create_handoff`."* |
+| **`clean_context`** | `contextos clean [--project\|--all]` | Mark active task completed or clear project context | *"Clean active task in ContextOS by marking it completed."* |
 
 ---
 

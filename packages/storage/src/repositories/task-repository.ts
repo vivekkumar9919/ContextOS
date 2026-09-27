@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import {
   type Task,
+  type TaskStatus,
   type CreateTaskInput,
   type UpdateTaskInput,
   TaskSchema,
@@ -108,6 +109,22 @@ export class TaskRepository {
       WHERE project_id = ?
       ORDER BY updated_at DESC
     `).all(projectId) as any[];
+    return rows.map((r) => this.mapRow(r));
+  }
+
+  public listAll(options?: { status?: TaskStatus; limit?: number }): Task[] {
+    let sql = 'SELECT * FROM tasks';
+    const params: any[] = [];
+    if (options?.status) {
+      sql += ' WHERE status = ?';
+      params.push(options.status);
+    }
+    sql += ' ORDER BY updated_at DESC';
+    if (options?.limit) {
+      sql += ' LIMIT ?';
+      params.push(options.limit);
+    }
+    const rows = this.db.prepare(sql).all(...params) as any[];
     return rows.map((r) => this.mapRow(r));
   }
 

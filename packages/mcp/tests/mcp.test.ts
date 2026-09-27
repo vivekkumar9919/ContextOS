@@ -64,76 +64,115 @@ describe('@contextos/mcp Test Suite', () => {
     expect(res?.result.capabilities.tools).toBeDefined();
   });
 
-  it('lists all 5 core tools via tools/list', () => {
+  it('lists all 11 core tools via tools/list', () => {
     const res = callServer({
       jsonrpc: '2.0',
       id: 2,
       method: 'tools/list',
     });
 
-    expect(res?.result.tools).toHaveLength(5);
+    expect(res?.result.tools).toHaveLength(11);
     const toolNames = res?.result.tools.map((t: any) => t.name);
+    expect(toolNames).toContain('get_status');
     expect(toolNames).toContain('get_current_task');
+    expect(toolNames).toContain('create_task');
     expect(toolNames).toContain('save_context');
+    expect(toolNames).toContain('list_tasks');
     expect(toolNames).toContain('record_decision');
+    expect(toolNames).toContain('list_decisions');
+    expect(toolNames).toContain('list_projects');
     expect(toolNames).toContain('create_handoff');
     expect(toolNames).toContain('get_git_context');
+    expect(toolNames).toContain('clean_context');
   });
 
-  it('saves context and retrieves current task via tools/call', () => {
-    // 1. Call save_context to create new task
-    const saveRes = callServer({
+  it('creates task via create_task and gets consolidated status via get_status', () => {
+    // 1. Create a task explicitly
+    const createRes = callServer({
       jsonrpc: '2.0',
       id: 3,
       method: 'tools/call',
       params: {
-        name: 'save_context',
+        name: 'create_task',
         arguments: {
-          title: 'Implement OAuth Flow',
-          goal: 'Add Google and GitHub OAuth 2.0 authentication',
-          newConstraints: ['Tokens must be encrypted with AES-256-GCM'],
-          completedItems: ['Setup Google developer console app'],
-          remainingItems: ['Implement token exchange endpoint', 'Add session cookie middleware'],
-          status: 'IN_PROGRESS',
+          title: 'Setup Webhook Ingestion',
+          goal: 'Build HMAC verification for incoming webhooks',
+          jiraId: 'PAY-100',
+          constraints: ['Never store unencrypted tokens'],
+          remainingItems: ['Add HMAC validator', 'Add DB model'],
         },
       },
     });
 
-    expect(saveRes?.result.isError).toBeFalsy();
-    const saveContent = JSON.parse(saveRes?.result.content[0].text);
-    expect(saveContent.task.title).toBe('Implement OAuth Flow');
-    expect(saveContent.task.status).toBe('IN_PROGRESS');
+    expect(createRes?.result.isError).toBeFalsy();
+    const createData = JSON.parse(createRes?.result.content[0].text);
+    expect(createData.task.title).toBe('Setup Webhook Ingestion');
+    expect(createData.task.jiraId).toBe('PAY-100');
 
-    // 2. Call get_current_task to verify persistence
-    const getRes = callServer({
+    // 2. Call get_status to verify full dashboard
+    const statusRes = callServer({
       jsonrpc: '2.0',
       id: 4,
       method: 'tools/call',
       params: {
-        name: 'get_current_task',
+        name: 'get_status',
         arguments: {},
       },
     });
 
-    expect(getRes?.result.isError).toBeFalsy();
-    const taskData = JSON.parse(getRes?.result.content[0].text);
-    expect(taskData.title).toBe('Implement OAuth Flow');
-    expect(taskData.constraints).toContain('Tokens must be encrypted with AES-256-GCM');
-    expect(taskData.completedItems).toContain('Setup Google developer console app');
-    expect(taskData.remainingItems).toContain('Implement token exchange endpoint');
+    expect(statusRes?.result.isError).toBeFalsy();
+    const statusData = JSON.parse(statusRes?.result.content[0].text);
+    expect(statusData.project.name).toBeDefined();
+    expect(statusData.storage.mode).toBeDefined();
+    expect(statusData.git.branch).toBeDefined();
+    expect(statusData.activeTask.jiraId).toBe('PAY-100');
+    expect(statusData.activeTask.title).toBe('Setup Webhook Ingestion');
   });
 
-  it('records architectural decisions and handles supersession', () => {
+  it('lists tasks with filters via list_tasks', () => {
+    callServer({
+      jsonrpc: '2.0',
+      id: 5,
+      method: 'tools/call',
+      params: {
+        name: 'create_task',
+        arguments: {
+          title: 'Task A',
+          goal: 'First task',
+          jiraId: 'TICK-1',
+        },
+      },
+    });
+
+    const listRes = callServer({
+      jsonrpc: '2.0',
+      id: 6,
+      method: 'tools/call',
+      params: {
+        name: 'list_tasks',
+        arguments: {
+          jiraId: 'TICK-1',
+        },
+      },
+    });
+
+    expect(listRes?.result.isError).toBeFalsy();
+    const listData = JSON.parse(listRes?.result.content[0].text);
+    expect(listData.total).toBe(1);
+    expect(listData.tasks[0].jiraId).toBe('TICK-1');
+  });
+
+  it('records decisions and lists them via list_decisions', () => {
     // 1. Record Decision A
     const decResA = callServer({
       jsonrpc: '2.0',
-      id: 5,
+      id: 7,
       method: 'tools/call',
       params: {
         name: 'record_decision',
         arguments: {
           title: 'Use JWT for Sessions',
-          rationale: 'Stateless session tokens stored in HTTP-only cookies',
+          rationale: 'Stateless tokens in HTTP-only cookies',
           relatedFiles: ['src/auth/jwt.ts'],
         },
       },
@@ -144,36 +183,106 @@ describe('@contextos/mcp Test Suite', () => {
     expect(parsedA.decision.status).toBe('ACTIVE');
 
     // 2. Record Decision B superseding Decision A
-    const decResB = callServer({
+    callServer({
       jsonrpc: '2.0',
-      id: 6,
+      id: 8,
       method: 'tools/call',
       params: {
         name: 'record_decision',
         arguments: {
           title: 'Use Redis Session Store',
-          rationale: 'Allows instant session revocation without waiting for token expiry',
+          rationale: 'Allows instant session revocation',
           relatedFiles: ['src/auth/session.ts'],
           supersedesDecisionId: parsedA.decision.id,
         },
       },
     });
 
-    const parsedB = JSON.parse(decResB?.result.content[0].text);
-    expect(parsedB.decision.title).toBe('Use Redis Session Store');
-    expect(parsedB.decision.status).toBe('ACTIVE');
-    expect(parsedB.supersededId).toBe(parsedA.decision.id);
+    // 3. List active decisions
+    const activeRes = callServer({
+      jsonrpc: '2.0',
+      id: 9,
+      method: 'tools/call',
+      params: {
+        name: 'list_decisions',
+        arguments: { status: 'ACTIVE' },
+      },
+    });
+
+    const activeData = JSON.parse(activeRes?.result.content[0].text);
+    expect(activeData.total).toBe(1);
+    expect(activeData.decisions[0].title).toBe('Use Redis Session Store');
+
+    // 4. List superseded decisions
+    const supersededRes = callServer({
+      jsonrpc: '2.0',
+      id: 10,
+      method: 'tools/call',
+      params: {
+        name: 'list_decisions',
+        arguments: { status: 'SUPERSEDED' },
+      },
+    });
+
+    const supersededData = JSON.parse(supersededRes?.result.content[0].text);
+    expect(supersededData.total).toBe(1);
+    expect(supersededData.decisions[0].title).toBe('Use JWT for Sessions');
+  });
+
+  it('lists registered projects via list_projects', () => {
+    const projRes = callServer({
+      jsonrpc: '2.0',
+      id: 11,
+      method: 'tools/call',
+      params: {
+        name: 'list_projects',
+        arguments: {},
+      },
+    });
+
+    expect(projRes?.result.isError).toBeFalsy();
+    const projData = JSON.parse(projRes?.result.content[0].text);
+    expect(projData.total).toBeGreaterThanOrEqual(1);
+    expect(fs.realpathSync(projData.projects[0].rootPath)).toBe(fs.realpathSync(tmpWorkspace));
+  });
+
+  it('cleans context via clean_context', () => {
+    callServer({
+      jsonrpc: '2.0',
+      id: 12,
+      method: 'tools/call',
+      params: {
+        name: 'create_task',
+        arguments: {
+          title: 'Task To Clean',
+          goal: 'Test cleaning',
+        },
+      },
+    });
+
+    const cleanRes = callServer({
+      jsonrpc: '2.0',
+      id: 13,
+      method: 'tools/call',
+      params: {
+        name: 'clean_context',
+        arguments: { target: 'active_task' },
+      },
+    });
+
+    expect(cleanRes?.result.isError).toBeFalsy();
+    const cleanData = JSON.parse(cleanRes?.result.content[0].text);
+    expect(cleanData.task.status).toBe('COMPLETED');
   });
 
   it('retrieves git working tree context via get_git_context', () => {
-    // Create new modified file in workspace
     const newFile = path.join(tmpWorkspace, 'auth.ts');
     fs.writeFileSync(newFile, 'export const secret = "oauth_test";\n', 'utf-8');
     execFileSync('git', ['add', '.'], { cwd: tmpWorkspace });
 
     const gitRes = callServer({
       jsonrpc: '2.0',
-      id: 7,
+      id: 14,
       method: 'tools/call',
       params: {
         name: 'get_git_context',
@@ -188,25 +297,23 @@ describe('@contextos/mcp Test Suite', () => {
   });
 
   it('compiles and returns bounded handoff payload via create_handoff', () => {
-    // Setup task
     callServer({
       jsonrpc: '2.0',
-      id: 8,
+      id: 15,
       method: 'tools/call',
       params: {
-        name: 'save_context',
+        name: 'create_task',
         arguments: {
-          title: 'Refactor DB Connection Pool',
-          goal: 'Improve connection reuse and eliminate pool exhaustion under load',
+          title: 'Refactor DB Pool',
+          goal: 'Improve connection reuse',
           status: 'IN_PROGRESS',
         },
       },
     });
 
-    // Call create_handoff
     const handoffRes = callServer({
       jsonrpc: '2.0',
-      id: 9,
+      id: 16,
       method: 'tools/call',
       params: {
         name: 'create_handoff',
@@ -221,7 +328,7 @@ describe('@contextos/mcp Test Suite', () => {
     expect(handoffRes?.result.isError).toBeFalsy();
     const handoffData = JSON.parse(handoffRes?.result.content[0].text);
     expect(handoffData.markdown).toContain('# ContextOS Handoff: claude ➔ codex');
-    expect(handoffData.markdown).toContain('Refactor DB Connection Pool');
+    expect(handoffData.markdown).toContain('Refactor DB Pool');
     expect(handoffData.tokenCountEstimate).toBeGreaterThan(0);
     expect(fs.existsSync(handoffData.handoffPath)).toBe(true);
   });

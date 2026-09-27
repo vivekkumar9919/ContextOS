@@ -20,11 +20,17 @@ import {
 import { MCP_TOOLS } from './tools.js';
 import {
   type McpServerContext,
+  handleGetStatus,
   handleGetCurrentTask,
+  handleCreateTask,
   handleSaveContext,
+  handleListTasks,
   handleRecordDecision,
+  handleListDecisions,
+  handleListProjects,
   handleCreateHandoff,
   handleGetGitContext,
+  handleCleanContext,
 } from './handlers.js';
 
 export interface McpServerOptions {
@@ -54,6 +60,7 @@ export class ContextOsMcpServer {
       }
     }
 
+    const isGlobal = !fs.existsSync(path.join(projectRoot, '.contextos', 'context.db'));
     const dbPath = options.dbPath || getDbPath(projectRoot);
     this.db = createDatabaseConnection({ dbPath, projectRoot });
 
@@ -75,6 +82,8 @@ export class ContextOsMcpServer {
       issueRepo,
       handoffRepo,
       gitClient,
+      dbPath,
+      isGlobal,
     };
   }
 
@@ -131,20 +140,38 @@ export class ContextOsMcpServer {
 
         try {
           switch (toolName) {
+            case 'get_status':
+              toolResult = handleGetStatus(toolArgs, this.ctx);
+              break;
             case 'get_current_task':
               toolResult = handleGetCurrentTask(toolArgs, this.ctx);
+              break;
+            case 'create_task':
+              toolResult = handleCreateTask(toolArgs, this.ctx);
               break;
             case 'save_context':
               toolResult = handleSaveContext(toolArgs, this.ctx);
               break;
+            case 'list_tasks':
+              toolResult = handleListTasks(toolArgs, this.ctx);
+              break;
             case 'record_decision':
               toolResult = handleRecordDecision(toolArgs, this.ctx);
+              break;
+            case 'list_decisions':
+              toolResult = handleListDecisions(toolArgs, this.ctx);
+              break;
+            case 'list_projects':
+              toolResult = handleListProjects(toolArgs, this.ctx);
               break;
             case 'create_handoff':
               toolResult = handleCreateHandoff(toolArgs, this.ctx);
               break;
             case 'get_git_context':
               toolResult = handleGetGitContext(toolArgs, this.ctx);
+              break;
+            case 'clean_context':
+              toolResult = handleCleanContext(toolArgs, this.ctx);
               break;
             default:
               return {
