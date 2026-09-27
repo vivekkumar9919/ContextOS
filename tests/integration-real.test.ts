@@ -589,3 +589,132 @@ describe('Group 10: Cross-storage fallback', () => {
     expect(ids).toContain('INT-SHARED01');
   });
 });
+
+// ═════════════════════════════════════════════════════════════════════════════
+// GROUP 11: Local-scope isolation — Repo A local data invisible from Repo B MCP
+// This is the strongest isolation test:
+//   - Two entirely separate repos, each with their own local .contextos DB
+//   - MCP server in Repo B must NEVER see Repo A's local tasks
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('Group 11: Cross-repo local isolation', () => {
+  let tmpRepo2: string;
+  let localDbPath2: string;
+  let localServer2: ContextOsMcpServer;
+
+  beforeEach(() => {
+    // Create a completely independent second repo
+    tmpRepo2 = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-int-repo2-'));
+    initGitRepo(tmpRepo2);
+    localDbPath2 = path.join(tmpRepo2, '.contextos', 'context.db');
+
+    // Initialize local storage in repo2 (with same CONTEXTOS_HOME so --global tests share global)
+    cli(['init', '--local'], { cwd: tmpRepo2, home: tmpHome });
+
+    // MCP server scoped to repo2
+    localServer2 = new ContextOsMcpServer({ cwd: tmpRepo2, dbPath: localDbPath2 });
+  });
+
+  afterEach(() => {
+    try { localServer2.close(); } catch {}
+    fs.rmSync(tmpRepo2, { recursive: true, force: true });
+  });
+
+  it('local task in Repo A is invisible to MCP server running in Repo B', () => {
+    // Create task in Repo A (tmpRepo) local DB
+    cli(
+      ['task', 'create', '--title', 'Repo A private task', '--goal', 'Repo A only', '--jira', 'ISO-A01'],
+      { cwd: tmpRepo, home: tmpHome },
+    );
+
+    // Repo A local server CAN find it
+    const resA = mcpCall(localServer, 'get_current_task', { jiraId: 'ISO-A01' });
+    expect(resA.jiraId).toBe('ISO-A01');
+
+    // Repo B MCP server must NOT find it
+    const resB = localServer2.handleRequest({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'get_current_task', arguments: { jiraId: 'ISO-A01' } },
+    });
+    const parsed = JSON.parse(resB!.result.content[0].text);
+    // If task was found, jiraId would be 'ISO-A01' — that would be a data leak
+    expect(parsed.jiraId).toBeUndefined();    // not a task object
+    expect(parsed.message).toBeDefined();     // "No task found" message
+  });
+
+  it('local task in Repo B is invisible to MCP server running in Repo A', () => {
+    // Create task in Repo B (tmpRepo2) local DB
+    cli(
+      ['task', 'create', '--title', 'Repo B private task', '--goal', 'Repo B only', '--jira', 'ISO-B01'],
+      { cwd: tmpRepo2, home: tmpHome },
+    );
+
+    // Repo B local server CAN find it
+    const resB = mcpCall(localServer2, 'get_current_task', { jiraId: 'ISO-B01' });
+    expect(resB.jiraId).toBe('ISO-B01');
+
+    // Repo A MCP server must NOT find it
+    const resA = localServer.handleRequest({
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call',
+      params: { name: 'get_current_task', arguments: { jiraId: 'ISO-B01' } },
+    });
+    const parsed = JSON.parse(resA!.result.content[0].text);
+    expect(parsed.jiraId).toBeUndefined();
+    expect(parsed.message).toBeDefined();
+  });
+
+  it('MCP list_tasks in Repo B never returns tasks from Repo A local DB', () => {
+    // Create multiple tasks in Repo A
+    cli(['task', 'create', '--title', 'A task 1', '--goal', 'g', '--jira', 'ISO-A10'], { cwd: tmpRepo, home: tmpHome });
+    cli(['task', 'create', '--title', 'A task 2', '--goal', 'g', '--jira', 'ISO-A11'], { cwd: tmpRepo, home: tmpHome });
+
+    // Create a task in Repo B
+    cli(['task', 'create', '--title', 'B task 1', '--goal', 'g', '--jira', 'ISO-B10'], { cwd: tmpRepo2, home: tmpHome });
+
+    // Repo B MCP list_tasks with includeGlobal=false (strict local only)
+    const resB = mcpCall(localServer2, 'list_tasks', { includeGlobal: false });
+    const jiraIds = resB.tasks.map((t: any) => t.jiraId);
+
+    // Should see its own task
+    expect(jiraIds).toContain('ISO-B10');
+
+    // Must NOT see Repo A's tasks
+    expect(jiraIds).not.toContain('ISO-A10');
+    expect(jiraIds).not.toContain('ISO-A11');
+  });
+
+  it('decisions in Repo A local DB are not listed by Repo B MCP', () => {
+    // Add decision in Repo A
+    mcpCall(localServer, 'record_decision', {
+      title:     'Repo A uses PostgreSQL',
+      rationale: 'Local to Repo A',
+    });
+
+    // Repo B MCP list_decisions with includeGlobal=false
+    const res = mcpCall(localServer2, 'list_decisions', { includeGlobal: false });
+    const titles = res.decisions.map((d: any) => d.title);
+
+    expect(titles).not.toContain('Repo A uses PostgreSQL');
+  });
+
+  it('global tasks are visible from BOTH repo MCP servers (shared global DB)', () => {
+    // Create global task via CLI (goes to tmpHome = CONTEXTOS_HOME)
+    cli(
+      ['task', 'create', '--title', 'Global shared task', '--goal', 'Visible from all repos', '--jira', 'ISO-GLOBAL01', '--global'],
+      { cwd: tmpRepo, home: tmpHome },
+    );
+
+    // Both global CLI confirms it
+    const cliOut = cli(['task', 'list', '--global'], { cwd: tmpRepo, home: tmpHome });
+    expect(cliOut).toMatch(/ISO-GLOBAL01/);
+
+    // Global MCP server (pointing to globalDbPath) sees it
+    const globalRes = mcpCall(globalServer, 'list_tasks', {});
+    const ids = globalRes.tasks.map((t: any) => t.jiraId);
+    expect(ids).toContain('ISO-GLOBAL01');
+  });
+});
