@@ -7,9 +7,7 @@ export function handleStatus(): void {
 
   console.log(banner());
   console.log(colors.bold('--- Project Overview ---'));
-  const isLocal = ctx.dbPath.startsWith(ctx.projectRoot);
   console.log(`  Project: ${colors.cyan(ctx.projectName)}`);
-  console.log(`  Mode:    ${isLocal ? colors.cyan('Local workspace (.contextos/)') : colors.magenta('Global system (~/.contextos/)')}`);
   console.log(`  Root:    ${colors.dim(ctx.projectRoot)}`);
   console.log(`  DB:      ${colors.dim(ctx.dbPath)}`);
 

@@ -48,7 +48,7 @@ export function getCliContext(cwd: string = process.cwd(), localOnly = false): C
   const projectRoot = repoRoot || cwd;
   const projectName = detectProjectName(projectRoot);
 
-  const dbPath = getDbPath(projectRoot);
+  const dbPath = getDbPath(localOnly ? projectRoot : undefined);
   const db = createDatabaseConnection({ dbPath, projectRoot });
 
   const projectRepo = new ProjectRepository(db);

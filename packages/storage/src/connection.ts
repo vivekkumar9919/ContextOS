@@ -13,9 +13,6 @@ export function resolveDbDir(projectRoot?: string): string {
   if (projectRoot && fs.existsSync(path.join(projectRoot, '.contextos'))) {
     return path.join(projectRoot, '.contextos');
   }
-  if (fs.existsSync(path.join(process.cwd(), '.contextos'))) {
-    return path.join(process.cwd(), '.contextos');
-  }
   return path.join(os.homedir(), '.contextos');
 }
 
