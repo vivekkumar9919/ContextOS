@@ -1,5 +1,3 @@
-[mcpServers]
-
-[mcpServers.contextos]
+[mcp_servers.contextos]
 command = "node"
 args = ["/Users/vivekkumar/Documents/projects/ContextOS/packages/mcp/dist/index.js"]
