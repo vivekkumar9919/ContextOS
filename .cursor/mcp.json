@@ -2,7 +2,7 @@
   "mcpServers": {
     "contextos": {
       "command": "node",
-      "args": ["packages/mcp/dist/index.js"]
+      "args": ["/Users/vivekkumar/Documents/projects/ContextOS/packages/mcp/dist/index.js"]
     }
   }
 }

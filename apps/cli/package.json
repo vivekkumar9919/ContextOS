@@ -12,6 +12,7 @@
     "@contextos/core": "*",
     "@contextos/storage": "*",
     "@contextos/git": "*",
-    "@contextos/context-builder": "*"
+    "@contextos/context-builder": "*",
+    "@contextos/mcp": "*"
   }
 }

@@ -44,11 +44,14 @@ export function printHelp(): void {
   console.log(`  ${colors.green('clean')} [--project|--all]`);
   console.log(`      Wipe the active project or remove local ContextOS files.\n`);
 
+  console.log(`  ${colors.green('mcp')}`);
+  console.log(`      Start the Model Context Protocol (MCP) server over stdio for AI agents.\n`);
+
   console.log(`  ${colors.green('help')} | ${colors.green('--help')}`);
   console.log(`      Display this help documentation.\n`);
 }
 
-export function runCli(argv: string[] = process.argv.slice(2)): void {
+export async function runCli(argv: string[] = process.argv.slice(2)): Promise<void> {
   if (
     argv.length === 0 ||
     argv[0] === 'help' ||
@@ -163,6 +166,13 @@ export function runCli(argv: string[] = process.argv.slice(2)): void {
         all: Boolean(values.all),
       });
       break;
+
+    case 'mcp': {
+      const { ContextOsMcpServer } = await import('@contextos/mcp');
+      const server = new ContextOsMcpServer();
+      server.startStdio();
+      break;
+    }
 
     default:
       console.error(colors.red(`Unknown command: '${command}'`));
