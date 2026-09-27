@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import { migration001 } from './migrations/001_initial_schema.js';
+import { migration002 } from './migrations/002_add_jira_id.js';
 
 export interface Migration {
   id: string;
@@ -7,7 +8,7 @@ export interface Migration {
   sql: string;
 }
 
-export const MIGRATIONS: Migration[] = [migration001];
+export const MIGRATIONS: Migration[] = [migration001, migration002];
 
 export function runMigrations(db: Database.Database): void {
   db.exec(`

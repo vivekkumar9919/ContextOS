@@ -5,6 +5,7 @@ import type { TaskStatus } from '@contextos/core';
 export interface TaskCommandOptions {
   subcommand?: string;
   id?: string;
+  jira?: string;
   title?: string;
   goal?: string;
   status?: string;
@@ -23,7 +24,7 @@ export function handleTask(options: TaskCommandOptions): void {
     case 'create': {
       if (!options.title || !options.goal) {
         logError('Task creation requires both --title and --goal flags.');
-        console.log(`Example: ${colors.dim('contextos task create --title "Auth Feature" --goal "JWT Auth"')}`);
+        console.log(`Example: ${colors.dim('contextos task create --title "Auth Feature" --goal "JWT Auth" --jira PROJ-123')}`);
         return;
       }
 
@@ -34,6 +35,8 @@ export function handleTask(options: TaskCommandOptions): void {
         ? options.remaining.split(',').map((s) => s.trim()).filter(Boolean)
         : [];
 
+      const jiraId = options.jira ? options.jira.trim().toUpperCase() : undefined;
+
       const task = ctx.taskRepo.create({
         projectId: ctx.project.id,
         title: options.title,
@@ -42,18 +45,29 @@ export function handleTask(options: TaskCommandOptions): void {
         constraints,
         completedItems: [],
         remainingItems,
+        jiraId,
       });
 
       logSuccess(`Task created: ${colors.bold(task.title)} [ID: ${task.id}]`);
+      if (task.jiraId) console.log(`  Jira:   ${colors.cyan(task.jiraId)}`);
       console.log(`  Goal:   ${task.goal}`);
       console.log(`  Status: ${colors.green(task.status)}`);
       break;
     }
 
     case 'update': {
-      const targetTask = options.id ? ctx.taskRepo.findById(options.id) : ctx.activeTask;
+      const targetTask = options.jira
+        ? ctx.taskRepo.findByJiraId(ctx.project.id, options.jira)
+        : options.id
+        ? ctx.taskRepo.findById(options.id)
+        : ctx.activeTask;
+
       if (!targetTask) {
-        logError('No active task found to update. Specify --id <task_id>.');
+        logError(
+          options.jira
+            ? `No task found with Jira ID: ${options.jira}`
+            : 'No active task found to update. Specify --id <task_id> or --jira <ticket>.'
+        );
         return;
       }
 
@@ -68,18 +82,66 @@ export function handleTask(options: TaskCommandOptions): void {
         goal: options.goal,
         status: options.status as TaskStatus,
         blocker: options.clearBlocker ? null : options.blocker,
+        jiraId: options.jira ? options.jira.trim().toUpperCase() : undefined,
       });
 
       logSuccess(`Task updated: ${colors.bold(updated.title)}`);
+      if (updated.jiraId) console.log(`  Jira:    ${colors.cyan(updated.jiraId)}`);
       console.log(`  Status:  ${colors.cyan(updated.status)}`);
       if (updated.blocker) console.log(`  Blocker: ${colors.red(updated.blocker)}`);
       break;
     }
 
-    case 'complete': {
-      const targetTask = options.id ? ctx.taskRepo.findById(options.id) : ctx.activeTask;
+    case 'get': {
+      const targetTask = options.jira
+        ? ctx.taskRepo.findByJiraId(ctx.project.id, options.jira)
+        : options.id
+        ? ctx.taskRepo.findById(options.id)
+        : ctx.activeTask;
+
       if (!targetTask) {
-        logError('No active task to complete. Specify --id <task_id>.');
+        logError(
+          options.jira
+            ? `No task found with Jira ID: ${options.jira}`
+            : options.id
+            ? `No task found with ID: ${options.id}`
+            : 'No active task found.'
+        );
+        return;
+      }
+
+      console.log(`\n${colors.bold('--- Task Context ---')}`);
+      console.log(`  Title:       ${colors.bold(targetTask.title)}`);
+      if (targetTask.jiraId) console.log(`  Jira Ticket: ${colors.cyan(targetTask.jiraId)}`);
+      console.log(`  Status:      ${colors.green(targetTask.status)}`);
+      console.log(`  Goal:        ${targetTask.goal}`);
+      if (targetTask.blocker) console.log(`  Blocker:     ${colors.red(targetTask.blocker)}`);
+
+      if (targetTask.constraints && targetTask.constraints.length > 0) {
+        console.log(`  Invariants/Constraints:`);
+        for (const c of targetTask.constraints) console.log(`    • ${c}`);
+      }
+      if (targetTask.completedItems && targetTask.completedItems.length > 0) {
+        console.log(`  Completed Checklist:`);
+        for (const c of targetTask.completedItems) console.log(`    ${colors.green('✔')} ${c}`);
+      }
+      if (targetTask.remainingItems && targetTask.remainingItems.length > 0) {
+        console.log(`  Remaining Checklist:`);
+        for (const r of targetTask.remainingItems) console.log(`    ○ ${r}`);
+      }
+      console.log('');
+      break;
+    }
+
+    case 'complete': {
+      const targetTask = options.jira
+        ? ctx.taskRepo.findByJiraId(ctx.project.id, options.jira)
+        : options.id
+        ? ctx.taskRepo.findById(options.id)
+        : ctx.activeTask;
+
+      if (!targetTask) {
+        logError('No active task to complete. Specify --id <task_id> or --jira <ticket>.');
         return;
       }
 
@@ -102,7 +164,12 @@ export function handleTask(options: TaskCommandOptions): void {
     }
 
     case 'clear': {
-      const targetTask = options.id ? ctx.taskRepo.findById(options.id) : ctx.activeTask;
+      const targetTask = options.jira
+        ? ctx.taskRepo.findByJiraId(ctx.project.id, options.jira)
+        : options.id
+        ? ctx.taskRepo.findById(options.id)
+        : ctx.activeTask;
+
       if (!targetTask) {
         logInfo('No active task found to clear.');
         return;
@@ -127,7 +194,8 @@ export function handleTask(options: TaskCommandOptions): void {
       console.log(`\n${colors.bold('Tasks for Project:')} ${colors.cyan(ctx.projectName)}\n`);
       for (const t of tasks) {
         const isCurrent = ctx.activeTask?.id === t.id ? colors.green(' [ACTIVE]') : '';
-        console.log(`• ${colors.bold(t.title)} (${t.status})${isCurrent}`);
+        const jiraTag = t.jiraId ? ` [${colors.cyan(t.jiraId)}]` : '';
+        console.log(`• ${colors.bold(t.title)}${jiraTag} (${t.status})${isCurrent}`);
         console.log(`  ID:   ${colors.dim(t.id)}`);
         console.log(`  Goal: ${t.goal}`);
         if (t.blocker) console.log(`  ${colors.red('Blocker:')} ${t.blocker}`);

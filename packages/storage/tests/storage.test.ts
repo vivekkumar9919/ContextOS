@@ -112,6 +112,30 @@ describe('@contextos/storage Test Suite', () => {
       expect(updated.remainingItems).toContain('Middleware validator');
       expect(updated.blocker).toBe('Waiting on secret rotation');
     });
+
+    it('stores optional Jira ticket ID and retrieves task by Jira ID case-insensitively', () => {
+      const proj = projectRepo.create({ name: 'JiraApp', rootPath: '/jira-app' });
+
+      const task = taskRepo.create({
+        projectId: proj.id,
+        title: 'Payment Webhook',
+        goal: 'Ingest Stripe webhooks',
+        jiraId: 'PAY-402',
+      });
+
+      expect(task.jiraId).toBe('PAY-402');
+
+      const foundUpper = taskRepo.findByJiraId(proj.id, 'PAY-402');
+      expect(foundUpper).not.toBeNull();
+      expect(foundUpper?.id).toBe(task.id);
+
+      const foundLower = taskRepo.findByJiraId(proj.id, 'pay-402');
+      expect(foundLower).not.toBeNull();
+      expect(foundLower?.id).toBe(task.id);
+
+      const notFound = taskRepo.findByJiraId(proj.id, 'NONEXISTENT-999');
+      expect(notFound).toBeNull();
+    });
   });
 
   describe('Decision Supersession DAG', () => {

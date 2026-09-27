@@ -10,6 +10,7 @@ export interface HandoffCommandOptions {
   to?: string;
   phase?: string;
   noCopy?: boolean;
+  jira?: string;
 }
 
 export function handleHandoff(options: HandoffCommandOptions): void {
@@ -20,18 +21,29 @@ export function handleHandoff(options: HandoffCommandOptions): void {
   const targetPhase: HandoffPhase =
     (options.phase as HandoffPhase) || 'implementation';
 
-  // Find active task or create default fallback
-  let task = ctx.activeTask;
+  // Find active task or task by Jira ID, or create default fallback
+  let task = options.jira
+    ? ctx.taskRepo.findByJiraId(ctx.project.id, options.jira)
+    : ctx.activeTask;
+
   if (!task) {
-    logWarning('No active task found. Creating temporary workspace handoff task.');
+    const taskTitle = options.jira
+      ? `${options.jira.toUpperCase()} Implementation`
+      : `${ctx.projectName} Development`;
+    const taskGoal = options.jira
+      ? `Execution of Jira ticket ${options.jira.toUpperCase()}`
+      : 'General workspace development and code review.';
+
+    logWarning(`No active task found. Creating workspace handoff task for ${taskTitle}.`);
     task = ctx.taskRepo.create({
       projectId: ctx.project.id,
-      title: `${ctx.projectName} Development`,
-      goal: 'General workspace development and code review.',
+      title: taskTitle,
+      goal: taskGoal,
       status: 'IN_PROGRESS',
       constraints: [],
       completedItems: [],
       remainingItems: [],
+      jiraId: options.jira ? options.jira.toUpperCase() : undefined,
     });
   }
 

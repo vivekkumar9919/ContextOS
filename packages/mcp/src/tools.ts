@@ -3,7 +3,7 @@ import type { McpTool } from './protocol.js';
 export const MCP_TOOLS: McpTool[] = [
   {
     name: 'get_current_task',
-    description: 'Returns the active task, constraints, completed items, remaining items, and blockers.',
+    description: 'Returns the active task, constraints, completed items, remaining items, and blockers (can filter by Jira ID).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -11,18 +11,26 @@ export const MCP_TOOLS: McpTool[] = [
           type: 'string',
           description: 'Optional project ID. If omitted, uses active workspace project.',
         },
+        jiraId: {
+          type: 'string',
+          description: 'Optional Jira ticket ID (e.g., PROJ-123) to fetch context for a specific ticket.',
+        },
       },
     },
   },
   {
     name: 'save_context',
-    description: 'Updates task state, records completed items, or logs new constraints.',
+    description: 'Updates task state, records completed items, or logs new constraints (supports optional Jira ticket ID).',
     inputSchema: {
       type: 'object',
       properties: {
         taskId: {
           type: 'string',
           description: 'Optional task ID. If omitted, updates active task or creates new task.',
+        },
+        jiraId: {
+          type: 'string',
+          description: 'Optional Jira ticket ID (e.g., PROJ-123) to associate with this task.',
         },
         title: {
           type: 'string',
@@ -108,6 +116,10 @@ export const MCP_TOOLS: McpTool[] = [
         taskId: {
           type: 'string',
           description: 'Optional task ID to summarize. Defaults to active task.',
+        },
+        jiraId: {
+          type: 'string',
+          description: 'Optional Jira ticket ID (e.g., PROJ-123) to compile handoff for.',
         },
       },
       required: ['fromAgent', 'toAgent', 'targetPhase'],

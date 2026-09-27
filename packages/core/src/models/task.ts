@@ -13,6 +13,7 @@ export const TaskSchema = z.object({
   completedItems: z.array(z.string()).default([]),
   remainingItems: z.array(z.string()).default([]),
   blocker: z.string().nullable().optional(),
+  jiraId: z.string().nullable().optional(),
   createdAt: z.string().datetime().default(() => new Date().toISOString()),
   updatedAt: z.string().datetime().default(() => new Date().toISOString()),
 });
@@ -30,6 +31,7 @@ export const CreateTaskInputSchema = TaskSchema.omit({
   completedItems: z.array(z.string()).optional().default([]),
   remainingItems: z.array(z.string()).optional().default([]),
   blocker: z.string().nullable().optional(),
+  jiraId: z.string().nullable().optional(),
 });
 
 export type CreateTaskInput = z.infer<typeof CreateTaskInputSchema>;
@@ -45,6 +47,7 @@ export const UpdateTaskInputSchema = z.object({
   remainingItems: z.array(z.string()).optional(),
   addRemainingItems: z.array(z.string()).optional(),
   blocker: z.string().nullable().optional(),
+  jiraId: z.string().nullable().optional(),
 });
 
 export type UpdateTaskInput = z.infer<typeof UpdateTaskInputSchema>;

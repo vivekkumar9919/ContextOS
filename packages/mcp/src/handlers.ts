@@ -29,18 +29,29 @@ export interface McpServerContext {
 }
 
 export function handleGetCurrentTask(
-  args: { projectId?: string },
+  args: { projectId?: string; jiraId?: string },
   ctx: McpServerContext
 ): McpToolCallResult {
   const projectId = args.projectId || ctx.project.id;
-  const activeTask = ctx.taskRepo.findActiveByProject(projectId);
+  const activeTask = args.jiraId
+    ? ctx.taskRepo.findByJiraId(projectId, args.jiraId)
+    : ctx.taskRepo.findActiveByProject(projectId);
 
   if (!activeTask) {
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify({ message: 'No active task found for project.', projectId }, null, 2),
+          text: JSON.stringify(
+            {
+              message: args.jiraId
+                ? `No task found with Jira ID: ${args.jiraId}`
+                : 'No active task found for project.',
+              projectId,
+            },
+            null,
+            2
+          ),
         },
       ],
     };
@@ -59,6 +70,7 @@ export function handleGetCurrentTask(
 export function handleSaveContext(
   args: {
     taskId?: string;
+    jiraId?: string;
     title?: string;
     goal?: string;
     completedItems?: string[];
@@ -74,13 +86,18 @@ export function handleSaveContext(
   if (args.taskId) {
     task = ctx.taskRepo.findById(args.taskId);
   }
+  if (!task && args.jiraId) {
+    task = ctx.taskRepo.findByJiraId(ctx.project.id, args.jiraId);
+  }
   if (!task) {
     task = ctx.taskRepo.findActiveByProject(ctx.project.id);
   }
 
   if (!task) {
     // Create new task if none exists
-    const title = args.title || 'Autonomous Agent Session';
+    const title =
+      args.title ||
+      (args.jiraId ? `${args.jiraId.toUpperCase()} Task` : 'Autonomous Agent Session');
     const goal = args.goal || 'Agent task execution';
     task = ctx.taskRepo.create({
       projectId: ctx.project.id,
@@ -91,6 +108,7 @@ export function handleSaveContext(
       completedItems: args.completedItems || [],
       remainingItems: args.remainingItems || [],
       blocker: args.blocker || null,
+      jiraId: args.jiraId ? args.jiraId.trim().toUpperCase() : undefined,
     });
 
     return {
@@ -109,6 +127,7 @@ export function handleSaveContext(
     goal: args.goal,
     status: args.status,
     blocker: args.blocker,
+    jiraId: args.jiraId ? args.jiraId.trim().toUpperCase() : undefined,
     addConstraints: args.newConstraints,
     addCompletedItems: args.completedItems,
     addRemainingItems: args.remainingItems,
@@ -169,20 +188,29 @@ export function handleCreateHandoff(
     toAgent: string;
     targetPhase: HandoffPhase;
     taskId?: string;
+    jiraId?: string;
   },
   ctx: McpServerContext
 ): McpToolCallResult {
-  let task = args.taskId ? ctx.taskRepo.findById(args.taskId) : ctx.taskRepo.findActiveByProject(ctx.project.id);
+  let task = args.taskId
+    ? ctx.taskRepo.findById(args.taskId)
+    : args.jiraId
+    ? ctx.taskRepo.findByJiraId(ctx.project.id, args.jiraId)
+    : ctx.taskRepo.findActiveByProject(ctx.project.id);
 
   if (!task) {
+    const defaultTitle = args.jiraId
+      ? `${args.jiraId.toUpperCase()} Agent Session`
+      : `${ctx.project.name} Agent Session`;
     task = ctx.taskRepo.create({
       projectId: ctx.project.id,
-      title: `${ctx.project.name} Agent Session`,
+      title: defaultTitle,
       goal: 'Continuous agent task execution',
       status: 'IN_PROGRESS',
       constraints: [],
       completedItems: [],
       remainingItems: [],
+      jiraId: args.jiraId ? args.jiraId.trim().toUpperCase() : undefined,
     });
   }
 

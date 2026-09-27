@@ -36,6 +36,9 @@ export function handleStatus(): void {
         : colors.yellow;
 
     console.log(`  Title:   ${colors.bold(ctx.activeTask.title)}`);
+    if (ctx.activeTask.jiraId) {
+      console.log(`  Jira:    ${colors.cyan(ctx.activeTask.jiraId)}`);
+    }
     console.log(`  Status:  ${statusColor(ctx.activeTask.status)}`);
     console.log(`  Goal:    ${ctx.activeTask.goal}`);
 

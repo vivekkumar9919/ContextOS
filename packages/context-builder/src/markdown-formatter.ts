@@ -44,9 +44,11 @@ export class MarkdownFormatter {
     );
 
     // 1. Task Specification
+    const jiraLine = task.jiraId ? `- **Jira Ticket:** \`${task.jiraId}\`\n` : '';
     sections.push(
       `## 1. Task Specification\n` +
       `- **Task:** ${task.title}\n` +
+      jiraLine +
       `- **Goal:** ${task.goal}\n` +
       `- **Status:** ${task.status}\n` +
       `- **Current Blocker:** ${task.blocker || 'None'}`

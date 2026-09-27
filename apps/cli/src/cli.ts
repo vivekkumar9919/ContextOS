@@ -19,15 +19,15 @@ export function printHelp(): void {
   console.log(`  ${colors.green('status')}`);
   console.log(`      Display active project, task progress, git working tree, and decisions.\n`);
 
-  console.log(`  ${colors.green('task')} <create|update|complete|clear|list>`);
-  console.log(`      Manage task lifecycle, constraints, checklists, and blockers.`);
-  console.log(`      Options: --title, --goal, --status, --constraints, --remaining, --item, --blocker\n`);
+  console.log(`  ${colors.green('task')} <create|update|complete|clear|get|list>`);
+  console.log(`      Manage task lifecycle, constraints, checklists, blockers, and Jira tickets.`);
+  console.log(`      Options: --title, --goal, --jira, --status, --constraints, --remaining, --item, --blocker\n`);
 
   console.log(`  ${colors.green('decision')} <add|supersede|list>`);
   console.log(`      Record architectural invariants and manage supersession DAG.`);
   console.log(`      Options: --title, --rationale, --files, --old, --new\n`);
 
-  console.log(`  ${colors.green('handoff')} [--from <agent>] [--to <agent>] [--phase <phase>] [--no-copy]`);
+  console.log(`  ${colors.green('handoff')} [--from <agent>] [--to <agent>] [--phase <phase>] [--jira <ticket>] [--no-copy]`);
   console.log(`      Compile bounded Markdown handoff to .contextos/handoffs/latest.md and clipboard.\n`);
 
   console.log(`  ${colors.green('clean')} [--project|--all]`);
@@ -68,6 +68,8 @@ export function runCli(argv: string[] = process.argv.slice(2)): void {
       remaining: { type: 'string' },
       item: { type: 'string' },
       id: { type: 'string' },
+      jira: { type: 'string' },
+      ticket: { type: 'string' },
       rationale: { type: 'string' },
       files: { type: 'string' },
       old: { type: 'string' },
@@ -79,6 +81,7 @@ export function runCli(argv: string[] = process.argv.slice(2)): void {
 
   const command = positionals[0];
   const subcommand = positionals[1];
+  const jiraId = (values.jira || values.ticket) as string | undefined;
 
   switch (command) {
     case 'init':
@@ -93,6 +96,7 @@ export function runCli(argv: string[] = process.argv.slice(2)): void {
       handleTask({
         subcommand,
         id: values.id as string,
+        jira: jiraId,
         title: values.title as string,
         goal: values.goal as string,
         status: values.status as string,
@@ -121,6 +125,7 @@ export function runCli(argv: string[] = process.argv.slice(2)): void {
         to: values.to as string,
         phase: values.phase as string,
         noCopy: Boolean(values.noCopy),
+        jira: jiraId,
       });
       break;
 

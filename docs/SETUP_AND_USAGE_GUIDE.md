@@ -193,11 +193,12 @@ contextos status
 #### Subcommands
 
 #### 1. `contextos task create`
-Creates a new active task in `IN_PROGRESS` status.
+Creates a new active task in `IN_PROGRESS` status (with optional Jira ticket ID).
 ```bash
 contextos task create \
   --title "Payment Gateway Refactor" \
   --goal "Migrate polling to idempotent webhook events" \
+  --jira "PROJ-123" \
   --constraints "Must use HMAC-SHA256,No raw card data logged" \
   --remaining "Verify signature,Deduplicate events,Add unit tests"
 ```
@@ -205,12 +206,16 @@ contextos task create \
 | :--- | :--- | :--- | :--- |
 | `--title` | string | Short title of the task | **Yes** |
 | `--goal` | string | Clear goal description | **Yes** |
+| `--jira` / `--ticket` | string | Optional Jira ticket ID (e.g. `PROJ-123`) | No |
 | `--constraints` | string | Comma-separated list of invariants/constraints | No |
 | `--remaining` | string | Comma-separated list of initial checklist items | No |
 
 #### 2. `contextos task update`
 Updates metadata, status, or blockers on a task.
 ```bash
+# Associate or update Jira ticket
+contextos task update --jira "PROJ-123"
+
 # Update blocker
 contextos task update --blocker "Stripe test signing key not configured"
 
@@ -223,13 +228,24 @@ contextos task update --status "BLOCKED"
 | Option | Type | Description |
 | :--- | :--- | :--- |
 | `--id` | string | Target task ID (defaults to active task) |
+| `--jira` | string | Target or update Jira ticket ID (e.g. `PROJ-123`) |
 | `--title` | string | Update task title |
 | `--goal` | string | Update task goal |
 | `--status` | string | `BACKLOG`, `IN_PROGRESS`, `BLOCKED`, or `COMPLETED` |
 | `--blocker` | string | Set an active blocker description |
 | `--clear-blocker`| boolean | Remove active blocker |
 
-#### 3. `contextos task complete`
+#### 3. `contextos task get`
+**Retrieves the complete context, checklist, invariants, and decisions for a specific Jira ticket or task ID.**
+```bash
+# Get context by Jira Ticket ID:
+contextos task get --jira PROJ-123
+
+# Get context by Task UUID:
+contextos task get --id 9fdb6e08-305c-4fc4-a668-32c7a38d498b
+```
+
+#### 4. `contextos task complete`
 Checks off an individual checklist item or marks the entire task as `COMPLETED`.
 ```bash
 # Complete a specific checklist item
@@ -241,16 +257,17 @@ contextos task complete
 | Option | Type | Description |
 | :--- | :--- | :--- |
 | `--item` | string | Moves this item from remaining items to completed items |
+| `--jira` | string | Target task by Jira ticket ID |
 | `--id` | string | Target task ID (defaults to active task) |
 
-#### 4. `contextos task clear`
+#### 5. `contextos task clear`
 Clears any blocker recorded on the active task.
 ```bash
 contextos task clear
 ```
 
-#### 5. `contextos task list`
-Lists all recorded tasks for the active project.
+#### 6. `contextos task list`
+Lists all recorded tasks for the active project, showing their status and Jira ticket tags.
 ```bash
 contextos task list
 ```
@@ -301,6 +318,9 @@ contextos decision list
 # Standard handoff: Claude (Planner) ➔ Codex (Implementer)
 contextos handoff --from claude --to codex --phase implementation
 
+# Compile handoff for a specific Jira ticket:
+contextos handoff --jira PROJ-123 --from antigravity --to codex
+
 # Return handoff for code review: Codex ➔ Claude
 contextos handoff --from codex --to claude --phase review
 
@@ -310,6 +330,7 @@ contextos handoff --no-copy
 
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
+| `--jira` | string | `undefined` | Optional Jira ticket ID (e.g. `PROJ-123`) to compile handoff for |
 | `--from` | string | `developer` | Name of the upstream agent creating handoff |
 | `--to` | string | `assistant` | Name of the downstream agent receiving handoff |
 | `--phase` | string | `implementation`| `planning`, `implementation`, or `review` |
@@ -380,17 +401,19 @@ ContextOS exposes **5 standard tools** over JSON-RPC:
 ---
 
 #### Tool 1: `get_current_task`
-- **When to Use**: Call immediately upon waking up to understand the active goal and critical constraints.
+- **When to Use**: Call immediately upon waking up to understand the active goal, critical constraints, or to fetch a specific Jira ticket's context.
 - **Input Parameters**:
   ```json
   {
-    "projectId": "string (optional: defaults to active project)"
+    "projectId": "string (optional: defaults to active project)",
+    "jiraId": "string (optional: e.g. PROJ-123 to fetch context for a specific Jira ticket)"
   }
   ```
 - **Example Response**:
   ```json
   {
     "id": "81ea9a71-a99d-4c14-a3a9-83ab9ce4b83a",
+    "jiraId": "PROJ-123",
     "title": "Refactor Payment Gateway to Webhooks",
     "goal": "Migrate from polling payment status to idempotent webhook event ingestion",
     "status": "IN_PROGRESS",
@@ -412,11 +435,12 @@ ContextOS exposes **5 standard tools** over JSON-RPC:
 ---
 
 #### Tool 2: `save_context`
-- **When to Use**: Call after modifying code or completing steps to record progress, note new constraints, or update blockers.
+- **When to Use**: Call after modifying code or completing steps to record progress, note new constraints, associate Jira tickets, or update blockers.
 - **Input Parameters**:
   ```json
   {
     "taskId": "string (optional)",
+    "jiraId": "string (optional: e.g. PROJ-123 to associate with this task)",
     "title": "string (optional)",
     "goal": "string (optional)",
     "status": "IN_PROGRESS | BLOCKED | COMPLETED | BACKLOG",
@@ -460,7 +484,8 @@ ContextOS exposes **5 standard tools** over JSON-RPC:
     "fromAgent": "string (required: e.g. claude)",
     "toAgent": "string (required: e.g. codex)",
     "targetPhase": "planning | implementation | review",
-    "taskId": "string (optional)"
+    "taskId": "string (optional)",
+    "jiraId": "string (optional: e.g. PROJ-123)"
   }
   ```
 - **Example Response**:

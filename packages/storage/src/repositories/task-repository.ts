@@ -23,10 +23,12 @@ export class TaskRepository {
       INSERT INTO tasks (
         id, project_id, title, goal, status,
         constraints, completed_items, remaining_items,
-        blocker, created_at, updated_at
+        blocker, jira_id, created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
+
+    const jiraId = input.jiraId ? input.jiraId.trim().toUpperCase() : null;
 
     stmt.run(
       id,
@@ -38,6 +40,7 @@ export class TaskRepository {
       completedItems,
       remainingItems,
       input.blocker || null,
+      jiraId,
       now,
       now
     );
@@ -52,6 +55,7 @@ export class TaskRepository {
       completedItems: input.completedItems || [],
       remainingItems: input.remainingItems || [],
       blocker: input.blocker || null,
+      jiraId,
       createdAt: now,
       updatedAt: now,
     };
@@ -59,6 +63,17 @@ export class TaskRepository {
 
   public findById(id: string): Task | null {
     const row = this.db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as any;
+    if (!row) return null;
+    return this.mapRow(row);
+  }
+
+  public findByJiraId(projectId: string, jiraId: string): Task | null {
+    const row = this.db.prepare(`
+      SELECT * FROM tasks
+      WHERE project_id = ? AND UPPER(jira_id) = UPPER(?)
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `).get(projectId, jiraId.trim()) as any;
     if (!row) return null;
     return this.mapRow(row);
   }
@@ -108,6 +123,11 @@ export class TaskRepository {
 
     remainingItems = remainingItems.filter((item) => !completedItems.includes(item));
 
+    const updatedJiraId =
+      input.jiraId !== undefined
+        ? (input.jiraId ? input.jiraId.trim().toUpperCase() : null)
+        : existing.jiraId;
+
     const updated: Task = {
       ...existing,
       title: input.title ?? existing.title,
@@ -117,6 +137,7 @@ export class TaskRepository {
       completedItems,
       remainingItems,
       blocker: input.blocker !== undefined ? input.blocker : existing.blocker,
+      jiraId: updatedJiraId,
       updatedAt: now,
     };
 
@@ -124,7 +145,7 @@ export class TaskRepository {
       UPDATE tasks
       SET title = ?, goal = ?, status = ?,
           constraints = ?, completed_items = ?, remaining_items = ?,
-          blocker = ?, updated_at = ?
+          blocker = ?, jira_id = ?, updated_at = ?
       WHERE id = ?
     `);
 
@@ -136,6 +157,7 @@ export class TaskRepository {
       JSON.stringify(updated.completedItems),
       JSON.stringify(updated.remainingItems),
       updated.blocker,
+      updated.jiraId,
       updated.updatedAt,
       id
     );
@@ -159,6 +181,7 @@ export class TaskRepository {
       completedItems: JSON.parse(row.completed_items || '[]'),
       remainingItems: JSON.parse(row.remaining_items || '[]'),
       blocker: row.blocker,
+      jiraId: row.jira_id || null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     });
