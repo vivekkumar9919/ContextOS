@@ -16,8 +16,10 @@
    - [`contextos handoff`](#35-contextos-handoff)
    - [`contextos clean`](#36-contextos-clean)
 4. [Model Context Protocol (MCP) Server Guide](#4-model-context-protocol-mcp-server-guide)
-   - [Configuring in AI Coding Agents](#41-configuring-in-ai-coding-agents)
-   - [Tool Reference: When to Use & Descriptions](#42-tool-reference-when-to-use--descriptions)
+   - [The Fundamental Rule: Terminal CLI vs. AI Agent Chat](#41-the-fundamental-rule-terminal-cli-vs-ai-agent-chat)
+   - [Cross-Database Lookup (Zero Repo Pollution)](#42-cross-database-lookup-zero-repo-pollution)
+   - [Configuring Across AI IDEs & Clients](#43-configuring-across-ai-ides--clients)
+   - [Tool Reference: When to Use & Descriptions](#44-tool-reference-when-to-use--descriptions)
 5. [End-to-End Multi-Agent Handoff Workflow Walkthrough](#5-end-to-end-multi-agent-handoff-workflow-walkthrough)
 6. [Security, Secret Redaction & Noise Filtering](#6-security-secret-redaction--noise-filtering)
 7. [Storage Layout & Concurrency Invariants](#7-storage-layout--concurrency-invariants)
@@ -357,36 +359,100 @@ ContextOS includes a built-in MCP server (`packages/mcp/dist/index.js`) communic
 
 Autonomous coding agents (Claude Code, Cursor, Codex, Windsurf, Claude Desktop) can invoke ContextOS tools directly without human intervention.
 
-### 4.1 Configuring in AI Coding Agents
+### 4.1 The Fundamental Rule: Terminal CLI vs. AI Agent Chat
 
-#### Claude Desktop Configuration
-Add ContextOS to your `claude_desktop_config.json`:
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+When working across multiple repositories and global context (`~/.contextos/context.db`):
+- **In Your Terminal Shell**: Always run the CLI (`contextos status --global`, `contextos task get --jira <id>`, `contextos handoff`). Your shell has full operating system permissions.
+- **Inside AI Agent Chat (Codex, Cursor, Claude, Antigravity)**: Agents run inside **sandboxed workspace containers**. When an agent tries to run terminal or bash scripts against `~/.contextos/context.db`, the sandbox blocks the operation with `SQLITE_CANTOPEN`.
+- **The Solution**: In chat, agents must **use MCP tools directly** (`get_current_task`, `save_context`, `record_decision`). The MCP server runs on the host OS outside the sandbox, allowing unrestricted read/write access to both local and global databases.
 
+---
+
+### 4.2 Cross-Database Lookup (Zero Repo Pollution)
+
+You can configure ContextOS MCP **once globally** on your machine and have it available across every repository without creating any configuration files in those repositories.
+When an agent calls `get_current_task({ jiraId: "TEST-100" })`:
+1. It inspects the local repository's `.contextos/context.db`.
+2. If not found or if the project has no local database, it **automatically falls back to `~/.contextos/context.db`**.
+
+---
+
+### 4.3 Configuring Across AI IDEs & Clients
+
+#### 1. Codex (VS Code Extension, Codex CLI, Desktop)
+Codex reads configuration from `~/.codex/config.toml` (user-level, global across all workspaces):
+
+- **CLI One-Liner (Recommended)**:
+  ```bash
+  codex mcp add contextos -- node /ABSOLUTE_PATH/ContextOS/packages/mcp/dist/index.js
+  ```
+  *(Or if linked globally: `codex mcp add contextos -- contextos mcp`)*
+
+- **Or manual `~/.codex/config.toml`**:
+  ```toml
+  [mcp_servers.contextos]
+  command = "node"
+  args = ["/ABSOLUTE_PATH/ContextOS/packages/mcp/dist/index.js"]
+  ```
+
+- **Verification**: Run `codex mcp list` in terminal to confirm `contextos` is enabled, or type `/mcp` in Codex chat.
+
+#### 2. Cursor IDE
+- **Global User Setup (Zero files in repos)**:
+  1. Open Cursor **Settings** (`⌘ + ,`) ➔ **Features** ➔ **MCP**.
+  2. Click **+ Add New MCP Server**:
+     - Name: `contextos`
+     - Type: `command`
+     - Command: `node /ABSOLUTE_PATH/ContextOS/packages/mcp/dist/index.js`
+  3. Verify a **green status dot** appears next to `contextos`.
+- **Project-Level Setup**: Add to `.cursor/mcp.json`:
+  ```json
+  {
+    "mcpServers": {
+      "contextos": {
+        "command": "node",
+        "args": ["/ABSOLUTE_PATH/ContextOS/packages/mcp/dist/index.js"]
+      }
+    }
+  }
+  ```
+
+#### 3. Google Antigravity
+Add to Antigravity's MCP configuration:
 ```json
 {
   "mcpServers": {
     "contextos": {
       "command": "node",
-      "args": ["/Users/YOUR_USER/Documents/projects/ContextOS/packages/mcp/dist/index.js"]
+      "args": ["/ABSOLUTE_PATH/ContextOS/packages/mcp/dist/index.js"]
     }
   }
 }
 ```
+- **Verification**: In Antigravity chat, inspect the active tools list to confirm `get_current_task`, `save_context`, and `record_decision` are loaded.
 
-#### Cursor IDE Configuration
-In Cursor settings:
-1. Navigate to **Features ➔ MCP**.
-2. Click **+ Add New MCP Server**.
-3. Name: `contextos`
-4. Type: `command`
-5. Command: `node /ABSOLUTE_PATH/ContextOS/packages/mcp/dist/index.js`
+#### 4. Claude Desktop & Claude Code
+- **Claude Desktop**: Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+  ```json
+  {
+    "mcpServers": {
+      "contextos": {
+        "command": "node",
+        "args": ["/ABSOLUTE_PATH/ContextOS/packages/mcp/dist/index.js"]
+      }
+    }
+  }
+  ```
+  *Verification:* Click the 🔨 hammer icon in Claude Desktop chat.
+- **Claude Code CLI**:
+  ```bash
+  claude mcp add contextos -- node /ABSOLUTE_PATH/ContextOS/packages/mcp/dist/index.js
+  ```
+  *Verification:* Run `claude mcp list`.
 
 ---
 
-### 4.2 Tool Reference: When to Use & Descriptions
+### 4.4 Tool Reference: When to Use & Descriptions
 
 ContextOS exposes **5 standard tools** over JSON-RPC:
 
