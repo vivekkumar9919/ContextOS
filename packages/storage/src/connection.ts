@@ -6,7 +6,10 @@ import { runMigrations } from './migrator.js';
 
 let defaultInstance: Database.Database | null = null;
 
-export function resolveDbDir(projectRoot?: string): string {
+export function resolveDbDir(projectRoot?: string, forceGlobal = false): string {
+  if (forceGlobal) {
+    return path.join(os.homedir(), '.contextos');
+  }
   if (process.env.CONTEXTOS_HOME) {
     return process.env.CONTEXTOS_HOME;
   }
@@ -19,8 +22,8 @@ export function resolveDbDir(projectRoot?: string): string {
   return path.join(os.homedir(), '.contextos');
 }
 
-export function getDbPath(projectRoot?: string): string {
-  const dir = resolveDbDir(projectRoot);
+export function getDbPath(projectRoot?: string, forceGlobal = false): string {
+  const dir = resolveDbDir(projectRoot, forceGlobal);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -31,15 +34,16 @@ export interface DatabaseOptions {
   inMemory?: boolean;
   dbPath?: string;
   projectRoot?: string;
+  forceGlobal?: boolean;
   timeout?: number;
 }
 
 export function createDatabaseConnection(options: DatabaseOptions = {}): Database.Database {
-  const { inMemory = false, dbPath, projectRoot, timeout = 5000 } = options;
+  const { inMemory = false, dbPath, projectRoot, forceGlobal = false, timeout = 5000 } = options;
 
   let targetPath = ':memory:';
   if (!inMemory) {
-    targetPath = dbPath || getDbPath(projectRoot);
+    targetPath = dbPath || getDbPath(projectRoot, forceGlobal);
   }
 
   const db = new Database(targetPath, { timeout });

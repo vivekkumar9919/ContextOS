@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import {
   createDatabaseConnection,
   getDbPath,
@@ -12,6 +13,12 @@ import {
 import { GitClient } from '@contextos/git';
 import type { Project, Task } from '@contextos/core';
 import type Database from 'better-sqlite3';
+
+export interface GetCliContextOptions {
+  cwd?: string;
+  localOnly?: boolean;
+  forceGlobal?: boolean;
+}
 
 export interface CliContext {
   cwd: string;
@@ -42,16 +49,33 @@ export function detectProjectName(projectRoot: string): string {
   return path.basename(projectRoot);
 }
 
-export function getCliContext(cwd: string = process.cwd(), localOnly = false): CliContext {
+export function getCliContext(
+  cwdOrOptions?: string | GetCliContextOptions,
+  localOnly = false
+): CliContext {
+  let cwd = process.cwd();
+  let isLocal = localOnly;
+  let forceGlobal = false;
+
+  if (typeof cwdOrOptions === 'string') {
+    cwd = cwdOrOptions;
+  } else if (cwdOrOptions && typeof cwdOrOptions === 'object') {
+    cwd = cwdOrOptions.cwd || process.cwd();
+    isLocal = Boolean(cwdOrOptions.localOnly);
+    forceGlobal = Boolean(cwdOrOptions.forceGlobal);
+  }
+
   const gitClient = new GitClient(cwd);
   const repoRoot = gitClient.getRepoRoot();
   const projectRoot = repoRoot || cwd;
   const projectName = detectProjectName(projectRoot);
 
-  const dbPath = localOnly
+  const dbPath = forceGlobal
+    ? path.join(os.homedir(), '.contextos', 'context.db')
+    : isLocal
     ? path.join(projectRoot, '.contextos', 'context.db')
     : getDbPath(projectRoot);
-  const db = createDatabaseConnection({ dbPath, projectRoot });
+  const db = createDatabaseConnection({ dbPath, projectRoot, forceGlobal });
 
   const projectRepo = new ProjectRepository(db);
   const taskRepo = new TaskRepository(db);

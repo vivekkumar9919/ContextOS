@@ -166,4 +166,35 @@ describe('@contextos/cli Test Suite', () => {
     statusOut = runCli(['status']);
     expect(statusOut).toContain('No active task found');
   });
+
+  it('supports Jira ticket linking and retrieval across local and global storage', () => {
+    runCli(['init']);
+
+    // Create task with Jira ID
+    const createOut = runCli([
+      'task',
+      'create',
+      '--title',
+      'Payment Gateway Integration',
+      '--goal',
+      'Stripe webhooks implementation',
+      '--jira',
+      'PAY-404',
+    ]);
+    expect(createOut).toContain('Task created: Payment Gateway Integration');
+    expect(createOut).toContain('PAY-404');
+
+    // Retrieve task by Jira ticket ID
+    const getOut = runCli(['task', 'get', '--jira', 'PAY-404']);
+    expect(getOut).toContain('--- Task Context ---');
+    expect(getOut).toContain('Payment Gateway Integration');
+    expect(getOut).toContain('PAY-404');
+    expect(getOut).toContain('Stripe webhooks implementation');
+
+    // Verify projects command displays the task and Jira ticket
+    const projectsOut = runCli(['projects']);
+    expect(projectsOut).toContain('Registered Projects in ContextOS');
+    expect(projectsOut).toContain('Payment Gateway Integration');
+    expect(projectsOut).toContain('PAY-404');
+  });
 });

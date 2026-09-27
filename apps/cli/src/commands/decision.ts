@@ -8,10 +8,11 @@ export interface DecisionCommandOptions {
   files?: string;
   old?: string;
   new?: string;
+  global?: boolean;
 }
 
 export function handleDecision(options: DecisionCommandOptions): void {
-  const ctx = getCliContext();
+  const ctx = getCliContext({ forceGlobal: Boolean(options.global) });
   const sub = options.subcommand || 'list';
 
   switch (sub) {

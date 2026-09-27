@@ -17,27 +17,27 @@ export function printHelp(): void {
   console.log(`  ${colors.green('init')} [--local|--global]`);
   console.log(`      Initialize ContextOS storage (global in ~/.contextos or local in .contextos).\n`);
 
-  console.log(`  ${colors.green('status')}`);
+  console.log(`  ${colors.green('status')} [--global]`);
   console.log(`      Display active project, task progress, git working tree, and decisions.\n`);
 
-  console.log(`  ${colors.green('projects')}`);
+  console.log(`  ${colors.green('projects')} [--global]`);
   console.log(`      List all registered projects and active tasks across ContextOS storage.\n`);
 
-  console.log(`  ${colors.green('task')} <create|get|update|complete|clear|list>`);
+  console.log(`  ${colors.green('task')} <create|get|update|complete|clear|list> [--global]`);
   console.log(`      Manage task lifecycle, constraints, checklists, blockers, and Jira tickets.`);
   console.log(`      Subcommands & Examples:`);
-  console.log(`        • ${colors.dim('task create --title <t> --goal <g> [--jira <ticket>] [--constraints <c>]')}`);
-  console.log(`        • ${colors.dim('task get [--jira <ticket> | --id <id>]')}  (Get context by Jira ticket or ID)`);
-  console.log(`        • ${colors.dim('task update [--jira <ticket>] [--status <s>] [--blocker <b>]')}`);
-  console.log(`        • ${colors.dim('task complete [--item <item>] [--jira <ticket>]')}`);
-  console.log(`        • ${colors.dim('task clear [--jira <ticket>]')}`);
-  console.log(`        • ${colors.dim('task list')}\n`);
+  console.log(`        • ${colors.dim('task create --title <t> --goal <g> [--jira <ticket>] [--constraints <c>] [--global]')}`);
+  console.log(`        • ${colors.dim('task get [--jira <ticket> | --id <id>] [--global]')}  (Get context by Jira ticket or ID)`);
+  console.log(`        • ${colors.dim('task update [--jira <ticket>] [--status <s>] [--blocker <b>] [--global]')}`);
+  console.log(`        • ${colors.dim('task complete [--item <item>] [--jira <ticket>] [--global]')}`);
+  console.log(`        • ${colors.dim('task clear [--jira <ticket>] [--global]')}`);
+  console.log(`        • ${colors.dim('task list [--global]')}\n`);
 
-  console.log(`  ${colors.green('decision')} <add|supersede|list>`);
+  console.log(`  ${colors.green('decision')} <add|supersede|list> [--global]`);
   console.log(`      Record architectural invariants and manage supersession DAG.`);
   console.log(`      Options: --title, --rationale, --files, --old, --new\n`);
 
-  console.log(`  ${colors.green('handoff')} [--from <agent>] [--to <agent>] [--phase <phase>] [--jira <ticket>] [--no-copy]`);
+  console.log(`  ${colors.green('handoff')} [--from <agent>] [--to <agent>] [--phase <phase>] [--jira <ticket>] [--global] [--no-copy]`);
   console.log(`      Compile bounded Markdown handoff to .contextos/handoffs/latest.md and clipboard.`);
   console.log(`      Example: ${colors.dim('contextos handoff --jira PROJ-123 --from antigravity --to codex')}\n`);
 
@@ -110,11 +110,11 @@ export function runCli(argv: string[] = process.argv.slice(2)): void {
       break;
 
     case 'status':
-      handleStatus();
+      handleStatus({ global: Boolean(values.global) });
       break;
 
     case 'projects':
-      handleProjects();
+      handleProjects({ global: Boolean(values.global) });
       break;
 
     case 'task':
@@ -130,6 +130,7 @@ export function runCli(argv: string[] = process.argv.slice(2)): void {
         constraints: values.constraints as string,
         remaining: values.remaining as string,
         item: values.item as string,
+        global: Boolean(values.global),
       });
       break;
 
@@ -141,6 +142,7 @@ export function runCli(argv: string[] = process.argv.slice(2)): void {
         files: values.files as string,
         old: values.old as string,
         new: values.new as string,
+        global: Boolean(values.global),
       });
       break;
 
@@ -151,6 +153,7 @@ export function runCli(argv: string[] = process.argv.slice(2)): void {
         phase: values.phase as string,
         noCopy: Boolean(values.noCopy),
         jira: jiraId,
+        global: Boolean(values.global),
       });
       break;
 

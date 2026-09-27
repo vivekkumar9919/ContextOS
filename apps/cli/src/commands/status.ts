@@ -1,15 +1,23 @@
+import * as path from 'node:path';
+import * as os from 'node:os';
 import { getCliContext } from '../context.js';
 import { colors, banner } from '../ui.js';
 
-export function handleStatus(): void {
-  const ctx = getCliContext();
+export interface StatusCommandOptions {
+  global?: boolean;
+}
+
+export function handleStatus(options: StatusCommandOptions = {}): void {
+  const ctx = getCliContext({ forceGlobal: Boolean(options.global) });
   const gitContext = ctx.gitClient.getFilteredContext({ maxTotalLines: 10 });
+  const isGlobalStorage = ctx.dbPath.startsWith(path.join(os.homedir(), '.contextos'));
+  const storageLabel = isGlobalStorage ? 'Global system storage' : 'Local workspace';
 
   console.log(banner());
   console.log(colors.bold('--- Project Overview ---'));
   console.log(`  Project: ${colors.cyan(ctx.projectName)}`);
   console.log(`  Root:    ${colors.dim(ctx.projectRoot)}`);
-  console.log(`  DB:      ${colors.dim(ctx.dbPath)}`);
+  console.log(`  DB:      ${colors.dim(ctx.dbPath)} (${colors.cyan(storageLabel)})`);
 
   console.log(`\n${colors.bold('--- Git Working Tree ---')}`);
   console.log(`  Branch:  ${colors.green(gitContext.branch)}`);
@@ -78,6 +86,10 @@ export function handleStatus(): void {
     }
   } else {
     console.log(`  ${colors.dim('No architectural decisions recorded.')}`);
+  }
+
+  if (!isGlobalStorage) {
+    console.log(`\n${colors.dim('ℹ Local storage active. Run `contextos status --global` to view global system storage.')}`);
   }
   console.log('');
 }

@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { resolveDbDir } from '@contextos/storage';
+import { createDatabaseConnection, migrateDatabase } from '@contextos/storage';
 import { getCliContext } from '../context.js';
 import { logSuccess, logInfo, colors } from '../ui.js';
 
@@ -18,14 +18,31 @@ export function handleInit(options: InitOptions): void {
     const localDbPath = path.join(cwd, '.contextos', 'context.db');
     if (fs.existsSync(localDbPath)) {
       try {
+        const localDb = createDatabaseConnection({ dbPath: localDbPath });
+        const globalDbPath = path.join(os.homedir(), '.contextos', 'context.db');
+        const globalDb = createDatabaseConnection({ dbPath: globalDbPath });
+        const counts = migrateDatabase(localDb, globalDb);
+        localDb.close();
+
         fs.unlinkSync(localDbPath);
         const wal = path.join(cwd, '.contextos', 'context.db-wal');
         if (fs.existsSync(wal)) fs.unlinkSync(wal);
         const shm = path.join(cwd, '.contextos', 'context.db-shm');
         if (fs.existsSync(shm)) fs.unlinkSync(shm);
-        logInfo('Switched storage: Removed local database to use global system storage.');
+
+        if (counts.tasks > 0 || counts.decisions > 0) {
+          logSuccess(
+            `Migrated existing local data to global storage: ${counts.tasks} task(s), ${counts.decisions} decision(s), ${counts.handoffs} handoff(s).`
+          );
+        } else {
+          logInfo('Switched storage: Switched from local workspace to global system storage.');
+        }
       } catch {
-        // Ignored
+        try {
+          fs.unlinkSync(localDbPath);
+        } catch {
+          // ignore
+        }
       }
     }
   }

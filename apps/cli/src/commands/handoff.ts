@@ -1,5 +1,8 @@
 import * as path from 'node:path';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
 import { HandoffCompiler } from '@contextos/context-builder';
+import { createDatabaseConnection, TaskRepository } from '@contextos/storage';
 import type { HandoffPhase, Task } from '@contextos/core';
 import { getCliContext } from '../context.js';
 import { copyToClipboard } from '../clipboard.js';
@@ -11,20 +14,36 @@ export interface HandoffCommandOptions {
   phase?: string;
   noCopy?: boolean;
   jira?: string;
+  global?: boolean;
 }
 
 export function handleHandoff(options: HandoffCommandOptions): void {
-  const ctx = getCliContext();
+  const ctx = getCliContext({ forceGlobal: Boolean(options.global) });
 
   const fromAgent = options.from || 'developer';
   const toAgent = options.to || 'assistant';
   const targetPhase: HandoffPhase =
     (options.phase as HandoffPhase) || 'implementation';
 
-  // Find active task or task by Jira ID, or create default fallback
+  // Find active task or task by Jira ID, or check cross-database fallback
   let task = options.jira
     ? ctx.taskRepo.findByJiraId(ctx.project.id, options.jira)
     : ctx.activeTask;
+
+  const globalDbPath = path.join(os.homedir(), '.contextos', 'context.db');
+  if (!task && options.jira && ctx.dbPath !== globalDbPath && fs.existsSync(globalDbPath)) {
+    try {
+      const globalDb = createDatabaseConnection({ dbPath: globalDbPath });
+      const globalTaskRepo = new TaskRepository(globalDb);
+      const found = globalTaskRepo.findByJiraId('', options.jira);
+      if (found) {
+        task = found;
+        logInfo(`Loaded task for Jira ticket ${colors.cyan(options.jira.toUpperCase())} from global storage.`);
+      }
+    } catch {
+      // ignore
+    }
+  }
 
   if (!task) {
     const taskTitle = options.jira
