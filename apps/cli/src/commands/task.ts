@@ -21,6 +21,23 @@ export function handleTask(options: TaskCommandOptions): void {
   const sub = options.subcommand || 'list';
 
   switch (sub) {
+    case 'help': {
+      console.log(`\n${colors.bold('ContextOS Task Subcommands & Options:')}\n`);
+      console.log(`  ${colors.green('contextos task create')} --title <t> --goal <g> [--jira <ticket>] [--constraints <c>] [--remaining <r>]`);
+      console.log(`      Creates a new active task with optional Jira ticket (e.g. --jira PROJ-123).\n`);
+      console.log(`  ${colors.green('contextos task get')} [--jira <ticket> | --id <id>]`);
+      console.log(`      Retrieves the complete context, constraints, and checklist for a Jira ticket or task.\n`);
+      console.log(`  ${colors.green('contextos task update')} [--jira <ticket>] [--status <s>] [--blocker <b>] [--clear-blocker]`);
+      console.log(`      Updates task status, associates/updates Jira ticket, or updates blockers.\n`);
+      console.log(`  ${colors.green('contextos task complete')} [--item <checklist_item>] [--jira <ticket>]`);
+      console.log(`      Completes an individual checklist item or marks the entire task as COMPLETED.\n`);
+      console.log(`  ${colors.green('contextos task clear')} [--jira <ticket>]`);
+      console.log(`      Clears active blockers on the task.\n`);
+      console.log(`  ${colors.green('contextos task list')}`);
+      console.log(`      Lists all recorded tasks for this project with status and Jira tags.\n`);
+      break;
+    }
+
     case 'create': {
       if (!options.title || !options.goal) {
         logError('Task creation requires both --title and --goal flags.');

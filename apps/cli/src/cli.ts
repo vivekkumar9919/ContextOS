@@ -19,16 +19,23 @@ export function printHelp(): void {
   console.log(`  ${colors.green('status')}`);
   console.log(`      Display active project, task progress, git working tree, and decisions.\n`);
 
-  console.log(`  ${colors.green('task')} <create|update|complete|clear|get|list>`);
+  console.log(`  ${colors.green('task')} <create|get|update|complete|clear|list>`);
   console.log(`      Manage task lifecycle, constraints, checklists, blockers, and Jira tickets.`);
-  console.log(`      Options: --title, --goal, --jira, --status, --constraints, --remaining, --item, --blocker\n`);
+  console.log(`      Subcommands & Examples:`);
+  console.log(`        • ${colors.dim('task create --title <t> --goal <g> [--jira <ticket>] [--constraints <c>]')}`);
+  console.log(`        • ${colors.dim('task get [--jira <ticket> | --id <id>]')}  (Get context by Jira ticket or ID)`);
+  console.log(`        • ${colors.dim('task update [--jira <ticket>] [--status <s>] [--blocker <b>]')}`);
+  console.log(`        • ${colors.dim('task complete [--item <item>] [--jira <ticket>]')}`);
+  console.log(`        • ${colors.dim('task clear [--jira <ticket>]')}`);
+  console.log(`        • ${colors.dim('task list')}\n`);
 
   console.log(`  ${colors.green('decision')} <add|supersede|list>`);
   console.log(`      Record architectural invariants and manage supersession DAG.`);
   console.log(`      Options: --title, --rationale, --files, --old, --new\n`);
 
   console.log(`  ${colors.green('handoff')} [--from <agent>] [--to <agent>] [--phase <phase>] [--jira <ticket>] [--no-copy]`);
-  console.log(`      Compile bounded Markdown handoff to .contextos/handoffs/latest.md and clipboard.\n`);
+  console.log(`      Compile bounded Markdown handoff to .contextos/handoffs/latest.md and clipboard.`);
+  console.log(`      Example: ${colors.dim('contextos handoff --jira PROJ-123 --from antigravity --to codex')}\n`);
 
   console.log(`  ${colors.green('clean')} [--project|--all]`);
   console.log(`      Wipe the active project or remove local ContextOS files.\n`);
@@ -38,13 +45,23 @@ export function printHelp(): void {
 }
 
 export function runCli(argv: string[] = process.argv.slice(2)): void {
-  if (argv.length === 0 || argv.includes('--help') || argv.includes('-h') || argv[0] === 'help') {
+  if (
+    argv.length === 0 ||
+    argv[0] === 'help' ||
+    (argv.length === 1 && (argv[0] === '--help' || argv[0] === '-h'))
+  ) {
     printHelp();
     return;
   }
 
   if (argv.includes('--version') || argv.includes('-v')) {
     console.log('contextos v1.0.0');
+    return;
+  }
+
+  // Handle command-specific help like `contextos task --help` or `contextos task help`
+  if (argv[0] === 'task' && (argv.includes('--help') || argv.includes('-h') || argv[1] === 'help')) {
+    handleTask({ subcommand: 'help' });
     return;
   }
 
