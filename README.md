@@ -1,118 +1,402 @@
 # ContextOS
 
-> **Deterministic, local-first context and handoff layer for AI coding agents.**  
-> Stop hoarding giant chats. Seamlessly jump between **Claude**, **Codex**, **Cursor**, and **Antigravity** without losing architectural constraints or burning thousands of unnecessary tokens.
+> **Your AI context should belong to your project — not your chat window.**
 
-## 📌 ContextOS in 30 Seconds
+ContextOS is a **local-first context and handoff layer for AI coding agents**.
 
-**ContextOS** is an ultra-lightweight, local-first context engine designed for developers using AI coding agents across multiple IDEs and chat windows.
+It keeps the important state of your development work — tasks, decisions, architectural constraints, Git changes, and handoffs — outside your AI chat.
 
-Instead of keeping bloated 100-message chats open or manually copy-pasting markdown summaries between Claude, Codex, Cursor, and Antigravity, ContextOS maintains your active task, checklist progress, architectural decisions, and clean git diffs in an **embedded, zero-config SQLite file**. Any agent in any IDE can instantly read or update this context via the **Model Context Protocol (MCP)**.
-
-* 🔒 **100% Local-First & Private**: No cloud accounts, no external servers, and no telemetry. Your code and task context never leave your local machine.
-* 🪶 **Zero Heavy Database Setup**: No Docker containers, no PostgreSQL, Redis, or Vector DB services to run or manage. Everything runs on an embedded SQLite engine created on-the-fly (`.contextos/context.db` or `~/.contextos/context.db`).
-* 📉 **Drastic Token & Cost Savings**: Shrinks prompt payloads from 50,000–100,000+ tokens (giant chat thread history) down to **< 1,000 tokens** of concentrated signal.
-* 🔄 **Frictionless Model Hopping**: Plan with Claude ➔ Implement with Codex ➔ Refactor with Cursor ➔ Audit with Antigravity, without repeating yourself or losing constraints.
+So you can **start a fresh chat, switch between AI agents, or move between IDEs without starting over.**
 
 ---
 
-## 💡 Why ContextOS? The Problems It Solves
+## The Problem
 
-Modern AI-assisted software engineering involves multiple specialized models and tools:
-* **Claude / Gemini Pro** for system architecture, planning, and high-level reasoning.
-* **Codex / GPT** for autonomous implementation, testing, and scaffolding.
-* **Cursor / Windsurf** for inline file edits and interactive debugging.
-* **Antigravity / Research agents** for deep multi-turn audits and complex workflows.
+AI coding agents are great at working with code, but their context is often trapped inside individual conversations.
 
-However, moving between these tools creates major friction:
+A feature might start with:
 
-### 1. The "Chat Hoarding" Dilemma & Massive Token Waste
-Developers often keep massive, endless chat sessions alive for weeks simply because they **fear losing earlier context, architectural decisions, and requirements**. 
-* **The Cost**: Every turn in a 50-message chat resends the entire thread history (often **50,000–100,000+ tokens per prompt**).
-* **The Degradation**: Beyond burning API budget and hitting rate limits, models suffer from **"needle-in-a-haystack" degradation** and start hallucinating or violating constraints.
-* **How ContextOS Solves It**: ContextOS extracts the high-signal kernel of your work (active tasks, checklist status, architectural invariants, git diffs) into a bounded, deterministic snapshot (**typically under 1,000 tokens**). You can confidently start a fresh chat anytime with **zero context loss and up to 90%+ token savings**.
+```text
+5k tokens → 15k → 30k → 50k → 100k+
+```
 
-### 2. Painless Model & Chat Switching (Zero Copy-Pasting)
-Switching from a planning session in Claude to an implementation run in Codex traditionally meant copying long prompt summaries, re-explaining invariants, or losing track of progress. 
-* With ContextOS MCP enabled globally, your new chat session instantly fetches the exact state, checklist, and architectural constraints with a single tool call:
-  ```
-  "Check ContextOS for current task context and continue implementation."
-  ```
+Developers often keep using the same conversation because they are afraid that starting a new chat will mean losing everything the AI already knows.
 
-### 3. Jira / Ticket Context That Never Gets Lost
-Ever wondered: *"Which chat was I working on for PROJ-245?"* or *"Did we decide to use Redis or PostgreSQL for caching?"*
-* ContextOS indexes tasks and decisions by **Jira ticket ID / issue key**.
-* No matter how many chats you have opened or closed, any agent in any IDE can instantly recall the state:
-  ```
-  "Fetch ContextOS context for Jira ticket PROJ-245."
-  ```
+This creates two problems:
 
-### 4. Enforcing Architectural Invariants Across Agents
-LLMs easily forget negative constraints (e.g., *"Never log raw card details"*, *"Preserve backwards-compatible REST endpoints"*). 
-* ContextOS records **Architectural Invariants & Decisions (ADRs)** with strict DAG cycle checks.
-* Every downstream agent is automatically fed these invariants before writing code.
+- Long conversations become expensive to maintain.
+- Switching from Claude to Codex, Cursor, or another agent means manually rebuilding context.
+
+The problem isn't that the information doesn't exist.
+
+**The problem is that the information belongs to the chat instead of the project.**
 
 ---
 
-## 💰 The Token Economics: Before vs. After ContextOS
+## The ContextOS Approach
 
-| Metric | Without ContextOS (Chat Hoarding) | With ContextOS |
-| :--- | :--- | :--- |
-| **Tokens per Prompt** | 40,000 – 120,000+ tokens (re-sending history) | **< 1,000 – 2,500 tokens** (pure signal) |
-| **Token Cost / Quota** | 💸 Heavy consumption, quick rate-limit throttling | ⚡ **Up to 90%+ token savings** |
-| **Model Attention** | Suffers from distraction & lost instructions | Focused exclusively on active constraints |
-| **Handoff Friction** | Manual markdown copy-paste or re-explaining | Instant, programmatic MCP tool calls |
-| **Storage & Privacy** | Stored in proprietary remote chat logs | **100% Local SQLite** (`~/.contextos`) |
+ContextOS moves important development context out of the conversation and into a **local, structured project context**.
 
----
+```text
+                ┌─────────────────────┐
+                │      ContextOS      │
+                │                     │
+                │ Tasks               │
+                │ Decisions           │
+                │ Invariants          │
+                │ Git Context         │
+                │ Handoffs            │
+                └──────────┬──────────┘
+                           │
+             ┌─────────────┼─────────────┐
+             ↓             ↓             ↓
+          Claude         Codex        Cursor
+```
 
-## ⚡ Current Features
+Your AI conversation can change.
 
-* **11 First-Class MCP Tools (100% Terminal CLI Parity)**: Complete tool suite covering status dashboards, task lifecycles, checklists, decisions, project catalogs, git diff extraction, and cleanup.
-* **Local-First, Global-Opt-In Architecture**:
-  * **Local Workspace Storage** (`.contextos/context.db`): Isolated to the current repository.
-  * **Machine-Global Storage** (`~/.contextos/context.db`): Centralized hub accessible across any folder or repo.
-  * **Explicit Scope Control**: Tools support `global: true` to direct writes to machine-global scope from any session.
-* **Automatic Cross-Storage Fallback**: If a Jira ticket isn't found locally, ContextOS seamlessly checks global storage.
-* **Deterministic Bounded Handoffs**: Compiles strict Markdown briefs (`latest.md`) and automatically archives versioned handoffs with noise/lockfile pruning.
-* **Architectural Decision Records (ADR)**: Invariant tracker with automated supersession DAG and cycle-prevention logic.
-* **Noise-Filtered & Secret-Scanned Git Context**: Strips lockfiles, generated assets, binary blobs, and scans for high-entropy secrets before context reaches the LLM.
-* **Zero-Setup Clipboard Handoff**: Run `contextos handoff` in terminal to instantly copy a compact brief straight to your OS clipboard.
-
----
-
-## 🗺️ Roadmap & Upcoming Features
-
-* [ ] **Global Guardrails Engine**: Define machine-wide or org-wide invariants once in `~/.contextos` (e.g., *"Never commit secrets"*, *"Strict TypeScript only"*). All repos and agents automatically inherit them with zero per-repo config.
-* [ ] **AST & Tree-Sitter Semantic Diff Slicing**: Replace raw unified diffs with syntax-aware function-level slices for even leaner token payloads.
-* [ ] **Dynamic Token Budget Allocator**: Automatically tailor handoff density to the destination model's exact context window (Claude 200k vs GPT-4o mini 8k).
-* [ ] **SQLite FTS5 Full-Text Search**: Instant, sub-millisecond keyword retrieval across hundreds of past projects, archived handoffs, and decisions.
-* [ ] **Multi-Repo Workspace Tracking (Epics)**: Coordinate tickets that span multiple independent git repositories under a unified global task.
-* [ ] **Two-Way Issue Sync**: Direct read/write sync with Jira and Linear.
+**Your project context stays.**
 
 ---
 
-## 📚 Documentation & Guides
+## Start Fresh Without Starting Over
 
-ContextOS is designed to be configured once globally so every AI agent on your machine can access it. Detailed setup and usage guides are available below:
+When a conversation becomes too large, you can start a new one without rebuilding the entire history.
 
-* 🚀 **[Multi-IDE MCP & Global Context Guide](docs/MCP_GUIDE.md)**  
-  Step-by-step instructions to connect ContextOS over MCP in **VS Code (Codex)**, **Cursor**, **Google Antigravity**, **Claude Desktop**, and **Claude Code CLI**.
+Instead of carrying thousands of tokens of old conversation:
 
-* 📖 **[End-to-End Setup & Usage Guide](docs/SETUP_AND_USAGE_GUIDE.md)**  
-  Complete manual for building the monorepo, CLI command references, storage modes, and best practices.
+```text
+Old conversation
+      ↓
+     50k+ tokens
+      ↓
+   New chat
+```
 
-* 📋 **[Product Requirements Document (PRD)](docs/PRD.md)** & **[Technical Requirements Document (TRD)](docs/TRD.md)**
+ContextOS provides a small, relevant snapshot:
+
+```text
+Current task
+What has been completed
+Important decisions
+Architectural constraints
+Relevant Git changes
+Open issues
+```
+
+The goal is to keep the context **bounded and high-signal** rather than carrying the entire conversation forward.
 
 ---
 
-## 🤝 Contributing
+## Switch AI Agents Without Losing Context
 
-ContextOS is open-source and built for the emerging multi-agent coding ecosystem. 
+For example:
 
-**Feel free to contribute!** We welcome:
-* Ideas for new context optimization techniques.
-* Integrations with additional IDEs, agents, or issue trackers.
-* Bug reports, documentation polish, and pull requests.
+```text
+Claude
+  │
+  │ Planning / architecture
+  ↓
+ContextOS
+  │
+  │ Shared project state
+  ↓
+Codex
+  │
+  │ Implementation
+  ↓
+ContextOS
+  │
+  ↓
+Claude
+  │
+  │ Review
+```
 
-Check out open issues, open a discussion, or submit a pull request!
+You don't need to manually explain the entire project again every time you switch agents.
+
+With MCP, an agent can simply retrieve the current ContextOS state and continue from there.
+
+---
+
+## What ContextOS Stores
+
+ContextOS focuses on **development state**, not complete chat history.
+
+### Tasks
+
+Current work, progress, checklists, and open items.
+
+### Decisions
+
+Important architectural and implementation decisions, including superseded decisions.
+
+### Invariants
+
+Rules and constraints that should not be accidentally violated.
+
+### Git Context
+
+Relevant changes, branches, diffs, and repository state.
+
+### Handoffs
+
+Bounded snapshots designed to transfer work between AI sessions or agents.
+
+---
+
+## Why Not Just Save the Chat?
+
+Because a chat is not the same thing as project state.
+
+A conversation contains a lot of information that becomes irrelevant over time:
+
+- repeated explanations
+- old debugging attempts
+- intermediate ideas
+- tool output
+- discarded approaches
+- conversational noise
+
+ContextOS extracts the information that is useful for continuing the work.
+
+This makes it possible to **leave a long conversation behind without leaving the project context behind.**
+
+---
+
+## Token Efficiency
+
+ContextOS is designed around **bounded context**.
+
+A long-running AI conversation can accumulate tens of thousands of tokens even when only a small portion is still relevant.
+
+ContextOS instead produces compact context snapshots containing the current high-signal state.
+
+For example:
+
+| Approach | Context |
+|---|---:|
+| Long-running conversation | 40k–120k+ tokens |
+| ContextOS handoff | Typically <1k–2.5k tokens |
+
+Actual savings depend on the project and workflow, so these numbers are illustrative rather than guaranteed.
+
+The important idea is:
+
+> **You don't need to keep an old chat alive just because you're afraid of losing its context.**
+
+---
+
+## Local First
+
+ContextOS is designed to run locally.
+
+- No mandatory cloud service
+- No mandatory LLM API
+- No external database setup
+- SQLite storage
+- Project-local and global context
+- Works with the AI tools you already use
+
+Your context stays under your control.
+
+---
+
+## MCP Integration
+
+ContextOS exposes its context through **Model Context Protocol (MCP)**.
+
+This allows supported AI coding agents to read and update project context directly.
+
+Example:
+
+```text
+"Check ContextOS for the current task context
+and continue the implementation."
+```
+
+The agent can retrieve the relevant project state instead of requiring the entire previous conversation.
+
+---
+
+## Current Features
+
+ContextOS currently provides:
+
+- Local SQLite context storage
+- Project and global context
+- MCP integration
+- CLI interface
+- Task and checklist tracking
+- Architectural decisions / ADRs
+- Decision supersession and DAG validation
+- Git context and diff tracking
+- Secret/noise filtering
+- Deterministic bounded handoffs
+- Handoff archives
+- Clipboard-based handoffs
+- Cross-storage context fallback
+
+---
+
+## Example Workflow
+
+### 1. Plan with Claude
+
+Claude works on the architecture and records important decisions.
+
+### 2. Save the state
+
+ContextOS stores:
+
+```text
+Task
+├── Current progress
+├── Decisions
+├── Constraints
+├── Git changes
+└── Open questions
+```
+
+### 3. Start a new Codex session
+
+Instead of pasting the entire old conversation:
+
+```text
+Check ContextOS and continue the current task.
+```
+
+### 4. Continue implementation
+
+Codex retrieves the relevant state and continues from the latest project context.
+
+### 5. Hand back for review
+
+The updated state can be handed to another agent for review or debugging.
+
+---
+
+## Architecture
+
+```text
+AI Coding Agent
+      │
+      │ MCP / CLI
+      ↓
+┌──────────────────────┐
+│      ContextOS       │
+│                      │
+│ Context Builder      │
+│ Task State           │
+│ Decisions / ADRs     │
+│ Git Context          │
+│ Handoffs             │
+└──────────┬───────────┘
+           │
+           ↓
+      Local SQLite
+```
+
+The context layer remains independent from any particular AI provider.
+
+---
+
+## Design Principles
+
+**Local first**  
+Your project context should not require a cloud service.
+
+**Agent independent**  
+Context should not belong to Claude, Codex, Cursor, or any single model.
+
+**Deterministic**  
+Important project state should be explicit and predictable.
+
+**Bounded**  
+Retrieve the context needed for the task instead of carrying everything forward.
+
+**Developer controlled**  
+The developer decides what becomes durable project context.
+
+---
+
+## Roadmap
+
+- Role-specific context for planner / implementer / reviewer agents
+- Multi-agent workflow state
+- Smarter context selection
+- AST / Tree-sitter based code context
+- Dynamic token budgets
+- SQLite FTS5 search
+- Multi-repository workspaces
+- Jira / Linear integration
+- More AI agent integrations
+
+---
+
+## What ContextOS Is Not
+
+ContextOS is **not**:
+
+- another AI chatbot
+- an LLM provider
+- a replacement for Claude, Codex, Cursor, or other coding agents
+- a cloud-based memory service
+- a system that requires sending your code to an external API
+
+It is the **context layer between your project and the AI agents working on it.**
+
+---
+
+## Vision
+
+AI coding agents are becoming increasingly capable, but developers still have to manage the context around them.
+
+ContextOS aims to make that context **portable, structured, local, and independent of any single AI tool**.
+
+Instead of:
+
+```text
+Project → Chat → AI
+```
+
+the goal is:
+
+```text
+              ┌── Claude
+              │
+Project → ContextOS ── Codex
+              │
+              └── Other Agents
+```
+
+**Your project should own the context.**
+
+---
+
+## Documentation
+
+- [MCP Guide](docs/mcp.md)
+- [Setup Guide](docs/setup.md)
+- [PRD](docs/PRD.md)
+- [Technical Requirements](docs/TRD.md)
+
+---
+
+## Contributing
+
+ContextOS is open source and contributions are welcome.
+
+Areas where contributions are especially useful:
+
+- AI agent integrations
+- MCP tooling
+- Context optimization
+- Developer workflows
+- Issue tracker integrations
+
+---
+
+## License
+
+See [LICENSE](LICENSE).
