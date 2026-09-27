@@ -11,6 +11,7 @@ export const colors = {
   magenta: (s: string) => `\x1b[35m${s}\x1b[0m`,
 };
 
+
 export function banner(): string {
   return colors.cyan(
     `  ____            _            _    ___  ____  \n` +
