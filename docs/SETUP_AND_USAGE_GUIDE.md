@@ -115,14 +115,17 @@ $ contextos --help
 ---
 
 ### 3.1 `contextos init`
-**Description:** Initializes ContextOS storage for the current workspace.
-- Creates SQLite database and applies migrations automatically.
-- Automatically appends `.contextos/` to your `.gitignore` to prevent database files from ever entering Git.
+**Description:** Initializes ContextOS storage for the current workspace or switches storage modes.
+- Creates SQLite database and applies schema migrations automatically.
+- Automatically appends `.contextos/` to your `.gitignore` to prevent database and handoff files from ever entering Git.
 - Registers the current project in the `projects` table.
 
 ```bash
 # Global mode: uses ~/.contextos/context.db (Default)
 contextos init
+
+# Explicitly switch current project to Global mode:
+contextos init --global
 
 # Local workspace mode: creates .contextos/ inside current repo
 contextos init --local
@@ -131,11 +134,16 @@ contextos init --local
 | Flag | Type | Description |
 | :--- | :--- | :--- |
 | `--local` | boolean | Stores database inside `.contextos/` in the current project root instead of `~/.contextos/`. |
+| `--global` | boolean | Switches the project to use the central `~/.contextos/context.db` storage and cleans up any local workspace database. |
+
+#### Switching Between Modes Anytime:
+- **Switch from Local ➔ Global:** Run `contextos init --global` (or `contextos clean --all`). The workspace immediately connects to `~/.contextos/context.db`.
+- **Switch from Global ➔ Local:** Run `contextos init --local`. Creates a standalone `.contextos/context.db` isolated to this repository.
 
 ---
 
 ### 3.2 `contextos status`
-**Description:** Displays a consolidated status dashboard showing active project info, Git branch, dirty files, active task progress, checklist status, and architectural decisions.
+**Description:** Displays a consolidated status dashboard showing active project info, active storage mode, Git branch, dirty files, active task progress, checklist status, and architectural decisions.
 
 ```bash
 contextos status
@@ -152,8 +160,9 @@ contextos status
 
 --- Project Overview ---
   Project: ContextOS
+  Mode:    Local workspace (.contextos/)
   Root:    /Users/developer/ContextOS
-  DB:      /Users/developer/.contextos/context.db
+  DB:      /Users/developer/ContextOS/.contextos/context.db
 
 --- Git Working Tree ---
   Branch:  master
@@ -603,3 +612,9 @@ workspace/                      # Your Project Repository
 npm test
 ```
 All **50 tests** across 7 test suites should report green (`✓ passed`).
+
+### Q: How do I check or switch between Local and Global storage modes?
+**Answer:**
+- **Check current mode:** Run `contextos status`. The `--- Project Overview ---` header displays `Mode: Local workspace (.contextos/)` or `Mode: Global system (~/.contextos/)`.
+- **Switch to Global mode:** Run `contextos init --global` (or `contextos clean --all`). The local database is removed and ContextOS points to `~/.contextos/context.db`.
+- **Switch to Local mode:** Run `contextos init --local`. Creates a standalone `.contextos/context.db` inside your current repository.

@@ -13,7 +13,7 @@ export function printHelp(): void {
   console.log(`  $ contextos <command> [subcommand] [options]\n`);
 
   console.log(`${colors.bold('COMMANDS:')}`);
-  console.log(`  ${colors.green('init')} [--local]`);
+  console.log(`  ${colors.green('init')} [--local|--global]`);
   console.log(`      Initialize ContextOS storage (global in ~/.contextos or local in .contextos).\n`);
 
   console.log(`  ${colors.green('status')}`);
@@ -52,6 +52,7 @@ export function runCli(argv: string[] = process.argv.slice(2)): void {
     args: argv,
     options: {
       local: { type: 'boolean' },
+      global: { type: 'boolean' },
       project: { type: 'boolean' },
       all: { type: 'boolean' },
       from: { type: 'string' },
@@ -81,7 +82,7 @@ export function runCli(argv: string[] = process.argv.slice(2)): void {
 
   switch (command) {
     case 'init':
-      handleInit({ local: Boolean(values.local) });
+      handleInit({ local: Boolean(values.local), global: Boolean(values.global) });
       break;
 
     case 'status':

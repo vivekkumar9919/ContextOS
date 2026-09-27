@@ -1,18 +1,36 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import { resolveDbDir } from '@contextos/storage';
 import { getCliContext } from '../context.js';
 import { logSuccess, logInfo, colors } from '../ui.js';
 
 export interface InitOptions {
   local?: boolean;
+  global?: boolean;
 }
 
 export function handleInit(options: InitOptions): void {
   const cwd = process.cwd();
   const isLocal = Boolean(options.local);
 
-  let targetDir = isLocal ? path.join(cwd, '.contextos') : resolveDbDir();
+  if (options.global) {
+    const localDbPath = path.join(cwd, '.contextos', 'context.db');
+    if (fs.existsSync(localDbPath)) {
+      try {
+        fs.unlinkSync(localDbPath);
+        const wal = path.join(cwd, '.contextos', 'context.db-wal');
+        if (fs.existsSync(wal)) fs.unlinkSync(wal);
+        const shm = path.join(cwd, '.contextos', 'context.db-shm');
+        if (fs.existsSync(shm)) fs.unlinkSync(shm);
+        logInfo('Switched storage: Removed local database to use global system storage.');
+      } catch {
+        // Ignored
+      }
+    }
+  }
+
+  let targetDir = isLocal ? path.join(cwd, '.contextos') : path.join(os.homedir(), '.contextos');
 
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
