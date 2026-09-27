@@ -3,6 +3,17 @@
 > **Deterministic, local-first context and handoff layer for AI coding agents.**  
 > Stop hoarding giant chats. Seamlessly jump between **Claude**, **Codex**, **Cursor**, and **Antigravity** without losing architectural constraints or burning thousands of unnecessary tokens.
 
+## 📌 ContextOS in 30 Seconds
+
+**ContextOS** is an ultra-lightweight, local-first context engine designed for developers using AI coding agents across multiple IDEs and chat windows.
+
+Instead of keeping bloated 100-message chats open or manually copy-pasting markdown summaries between Claude, Codex, Cursor, and Antigravity, ContextOS maintains your active task, checklist progress, architectural decisions, and clean git diffs in an **embedded, zero-config SQLite file**. Any agent in any IDE can instantly read or update this context via the **Model Context Protocol (MCP)**.
+
+* 🔒 **100% Local-First & Private**: No cloud accounts, no external servers, and no telemetry. Your code and task context never leave your local machine.
+* 🪶 **Zero Heavy Database Setup**: No Docker containers, no PostgreSQL, Redis, or Vector DB services to run or manage. Everything runs on an embedded SQLite engine created on-the-fly (`.contextos/context.db` or `~/.contextos/context.db`).
+* 📉 **Drastic Token & Cost Savings**: Shrinks prompt payloads from 50,000–100,000+ tokens (giant chat thread history) down to **< 1,000 tokens** of concentrated signal.
+* 🔄 **Frictionless Model Hopping**: Plan with Claude ➔ Implement with Codex ➔ Refactor with Cursor ➔ Audit with Antigravity, without repeating yourself or losing constraints.
+
 ---
 
 ## 💡 Why ContextOS? The Problems It Solves
