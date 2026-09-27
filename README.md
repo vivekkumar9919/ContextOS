@@ -2,7 +2,12 @@
 
 > **Your AI context should belong to your project — not your chat window.**
 
+<p align="center">
+  <img src="assets/contextos-overview.jpg" alt="ContextOS Architecture Overview" width="100%" />
+</p>
+
 ContextOS is a **local-first context and handoff layer for AI coding agents**.
+
 
 It keeps the important state of your development work — tasks, decisions, architectural constraints, Git changes, and handoffs — outside your AI chat.
 
