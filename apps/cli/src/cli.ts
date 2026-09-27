@@ -5,6 +5,7 @@ import { handleTask } from './commands/task.js';
 import { handleDecision } from './commands/decision.js';
 import { handleHandoff } from './commands/handoff.js';
 import { handleClean } from './commands/clean.js';
+import { handleProjects } from './commands/projects.js';
 import { banner, colors } from './ui.js';
 
 export function printHelp(): void {
@@ -18,6 +19,9 @@ export function printHelp(): void {
 
   console.log(`  ${colors.green('status')}`);
   console.log(`      Display active project, task progress, git working tree, and decisions.\n`);
+
+  console.log(`  ${colors.green('projects')}`);
+  console.log(`      List all registered projects and active tasks across ContextOS storage.\n`);
 
   console.log(`  ${colors.green('task')} <create|get|update|complete|clear|list>`);
   console.log(`      Manage task lifecycle, constraints, checklists, blockers, and Jira tickets.`);
@@ -107,6 +111,10 @@ export function runCli(argv: string[] = process.argv.slice(2)): void {
 
     case 'status':
       handleStatus();
+      break;
+
+    case 'projects':
+      handleProjects();
       break;
 
     case 'task':

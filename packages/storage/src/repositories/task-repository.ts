@@ -68,14 +68,25 @@ export class TaskRepository {
   }
 
   public findByJiraId(projectId: string, jiraId: string): Task | null {
+    // 1. Search in current project first
     const row = this.db.prepare(`
       SELECT * FROM tasks
       WHERE project_id = ? AND UPPER(jira_id) = UPPER(?)
       ORDER BY updated_at DESC
       LIMIT 1
     `).get(projectId, jiraId.trim()) as any;
-    if (!row) return null;
-    return this.mapRow(row);
+    if (row) return this.mapRow(row);
+
+    // 2. Global fallback: search across all projects in the database
+    const globalRow = this.db.prepare(`
+      SELECT * FROM tasks
+      WHERE UPPER(jira_id) = UPPER(?)
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `).get(jiraId.trim()) as any;
+    if (globalRow) return this.mapRow(globalRow);
+
+    return null;
   }
 
   public findActiveByProject(projectId: string): Task | null {
