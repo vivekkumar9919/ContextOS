@@ -71,10 +71,16 @@ export const MCP_TOOLS: McpTool[] = [
           enum: ['IN_PROGRESS', 'BACKLOG'],
           description: 'Initial task status (default: IN_PROGRESS)',
         },
+        global: {
+          type: 'boolean',
+          description:
+            'If true, writes to machine-global storage (~/.contextos/context.db) regardless of which repo the MCP server started in. Use when the task spans multiple repos.',
+        },
       },
       required: ['title', 'goal'],
     },
   },
+
   {
     name: 'save_context',
     description:
@@ -122,9 +128,15 @@ export const MCP_TOOLS: McpTool[] = [
           enum: ['IN_PROGRESS', 'BLOCKED', 'COMPLETED', 'BACKLOG'],
           description: 'Current task status',
         },
+        global: {
+          type: 'boolean',
+          description:
+            'If true, writes to machine-global storage (~/.contextos/context.db). Use for cross-repo tasks or when the MCP server started in a repo that already has a local DB but you need global scope.',
+        },
       },
     },
   },
+
   {
     name: 'list_tasks',
     description:
@@ -176,10 +188,16 @@ export const MCP_TOOLS: McpTool[] = [
           type: 'string',
           description: 'ID of an older decision being superseded',
         },
+        global: {
+          type: 'boolean',
+          description:
+            'If true, records the decision in machine-global storage (~/.contextos/context.db). Use for org-wide or cross-repo architectural decisions.',
+        },
       },
       required: ['title', 'rationale'],
     },
   },
+
   {
     name: 'list_decisions',
     description:

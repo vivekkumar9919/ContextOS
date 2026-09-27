@@ -42,6 +42,48 @@ interface AlternateStorage {
   decisionRepo: DecisionRepository;
 }
 
+/**
+ * Opens the machine-global DB (~/.contextos/context.db or CONTEXTOS_HOME)
+ * and returns repos scoped to it. Used when an MCP tool receives global: true.
+ */
+function getGlobalStorage(ctx: McpServerContext): {
+  dbPath: string;
+  taskRepo: TaskRepository;
+  decisionRepo: DecisionRepository;
+  projectRepo: ProjectRepository;
+  project: Project;
+} | null {
+  const globalDir = process.env.CONTEXTOS_HOME || path.join(os.homedir(), '.contextos');
+  const globalDbPath = path.join(globalDir, 'context.db');
+  // Already using global storage — just return the current repos
+  if (ctx.isGlobal) {
+    return {
+      dbPath: globalDbPath,
+      taskRepo: ctx.taskRepo,
+      decisionRepo: ctx.decisionRepo,
+      projectRepo: ctx.projectRepo,
+      project: ctx.project,
+    };
+  }
+  try {
+    if (!fs.existsSync(globalDir)) {
+      fs.mkdirSync(globalDir, { recursive: true });
+    }
+    const db = createDatabaseConnection({ dbPath: globalDbPath });
+    const projectRepo = new ProjectRepository(db);
+    const project = projectRepo.findOrCreate(ctx.project.name, ctx.projectRoot);
+    return {
+      dbPath: globalDbPath,
+      taskRepo: new TaskRepository(db),
+      decisionRepo: new DecisionRepository(db),
+      projectRepo,
+      project,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function getAlternateStorage(ctx: McpServerContext): AlternateStorage | null {
   const globalDbPath = path.join(os.homedir(), '.contextos', 'context.db');
   const localDbPath = path.join(ctx.projectRoot, '.contextos', 'context.db');
@@ -229,14 +271,34 @@ export function handleCreateTask(
     constraints?: string[];
     remainingItems?: string[];
     status?: 'IN_PROGRESS' | 'BACKLOG';
+    global?: boolean;
   },
   ctx: McpServerContext
 ): McpToolCallResult {
   const jiraId = args.jiraId ? args.jiraId.trim().toUpperCase() : undefined;
   const status = args.status || 'IN_PROGRESS';
 
-  const task = ctx.taskRepo.create({
-    projectId: ctx.project.id,
+  // If global: true, redirect write to the machine-global DB
+  let taskRepo = ctx.taskRepo;
+  let projectId = ctx.project.id;
+  let storageNote = '';
+
+  if (args.global) {
+    const globalStorage = getGlobalStorage(ctx);
+    if (globalStorage) {
+      taskRepo = globalStorage.taskRepo;
+      projectId = globalStorage.project.id;
+      storageNote = ' (written to global storage)';
+    } else {
+      return {
+        content: [{ type: 'text', text: JSON.stringify({ error: 'Could not open global storage. Ensure ~/.contextos is initialised with `contextos init --global`.' }) }],
+        isError: true,
+      };
+    }
+  }
+
+  const task = taskRepo.create({
+    projectId,
     title: args.title,
     goal: args.goal,
     status,
@@ -253,7 +315,7 @@ export function handleCreateTask(
         type: 'text',
         text: JSON.stringify(
           {
-            message: `Task '${task.title}' created successfully.`,
+            message: `Task '${task.title}' created successfully${storageNote}.`,
             task,
           },
           null,
@@ -263,6 +325,7 @@ export function handleCreateTask(
     ],
   };
 }
+
 
 export function handleSaveContext(
   args: {
@@ -275,30 +338,47 @@ export function handleSaveContext(
     newConstraints?: string[];
     blocker?: string | null;
     status?: TaskStatus;
+    global?: boolean;
   },
   ctx: McpServerContext
 ): McpToolCallResult {
   let task: Task | null = null;
+
+  // Resolve which repos/project to use based on the global flag
   let targetRepo = ctx.taskRepo;
+  let projectId = ctx.project.id;
+
+  if (args.global) {
+    const globalStorage = getGlobalStorage(ctx);
+    if (!globalStorage) {
+      return {
+        content: [{ type: 'text', text: JSON.stringify({ error: 'Could not open global storage. Ensure ~/.contextos is initialised with `contextos init --global`.' }) }],
+        isError: true,
+      };
+    }
+    targetRepo = globalStorage.taskRepo;
+    projectId = globalStorage.project.id;
+  }
 
   if (args.taskId) {
-    task = ctx.taskRepo.findById(args.taskId);
+    task = targetRepo.findById(args.taskId);
   }
   if (!task && args.jiraId) {
-    task = ctx.taskRepo.findByJiraId(ctx.project.id, args.jiraId);
+    task = targetRepo.findByJiraId(projectId, args.jiraId);
   }
   if (!task) {
-    task = ctx.taskRepo.findActiveByProject(ctx.project.id);
+    task = targetRepo.findActiveByProject(projectId);
   }
 
-  // Cross-storage lookup for update
-  if (!task && args.jiraId) {
+  // Cross-storage lookup for update (only when NOT explicitly requesting global)
+  if (!task && args.jiraId && !args.global) {
     const alt = getAlternateStorage(ctx);
     if (alt) {
       const altTask = alt.taskRepo.findByJiraId('', args.jiraId);
       if (altTask) {
         task = altTask;
         targetRepo = alt.taskRepo;
+        projectId = altTask.projectId;
       }
     }
   }
@@ -310,7 +390,7 @@ export function handleSaveContext(
       (args.jiraId ? `${args.jiraId.toUpperCase()} Task` : 'Autonomous Agent Session');
     const goal = args.goal || 'Agent task execution';
     task = targetRepo.create({
-      projectId: ctx.project.id,
+      projectId,
       title,
       goal,
       status: args.status || 'IN_PROGRESS',
@@ -352,6 +432,7 @@ export function handleSaveContext(
     ],
   };
 }
+
 
 export function handleListTasks(
   args: {
@@ -405,11 +486,30 @@ export function handleRecordDecision(
     rationale: string;
     relatedFiles?: string[];
     supersedesDecisionId?: string;
+    global?: boolean;
   },
   ctx: McpServerContext
 ): McpToolCallResult {
-  const dec = ctx.decisionRepo.create({
-    projectId: ctx.project.id,
+  // Resolve storage target
+  let decisionRepo = ctx.decisionRepo;
+  let projectId = ctx.project.id;
+  let storageNote = '';
+
+  if (args.global) {
+    const globalStorage = getGlobalStorage(ctx);
+    if (!globalStorage) {
+      return {
+        content: [{ type: 'text', text: JSON.stringify({ error: 'Could not open global storage. Ensure ~/.contextos is initialised with `contextos init --global`.' }) }],
+        isError: true,
+      };
+    }
+    decisionRepo = globalStorage.decisionRepo;
+    projectId = globalStorage.project.id;
+    storageNote = ' (recorded in global storage)';
+  }
+
+  const dec = decisionRepo.create({
+    projectId,
     title: args.title,
     rationale: args.rationale,
     status: 'ACTIVE',
@@ -417,7 +517,7 @@ export function handleRecordDecision(
   });
 
   if (args.supersedesDecisionId) {
-    ctx.decisionRepo.supersede(args.supersedesDecisionId, dec.id);
+    decisionRepo.supersede(args.supersedesDecisionId, dec.id);
   }
 
   return {
@@ -426,7 +526,7 @@ export function handleRecordDecision(
         type: 'text',
         text: JSON.stringify(
           {
-            message: 'Architectural decision recorded.',
+            message: `Architectural decision recorded${storageNote}.`,
             decision: dec,
             supersededId: args.supersedesDecisionId || null,
           },
@@ -437,6 +537,7 @@ export function handleRecordDecision(
     ],
   };
 }
+
 
 export function handleListDecisions(
   args: {

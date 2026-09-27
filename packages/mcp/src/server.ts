@@ -45,8 +45,16 @@ export class ContextOsMcpServer {
   constructor(options: McpServerOptions = {}) {
     const cwd = options.cwd || process.cwd();
     const gitClient = new GitClient(cwd);
-    const repoRoot = gitClient.getRepoRoot();
+
+    // Fix: graceful fallback if cwd is not inside a git repository
+    let repoRoot: string | null = null;
+    try {
+      repoRoot = gitClient.getRepoRoot();
+    } catch {
+      repoRoot = null; // Not a git repo — that's fine, fall back to cwd
+    }
     const projectRoot = repoRoot || cwd;
+
 
     // Detect project name from package.json if present
     let projectName = path.basename(projectRoot);
