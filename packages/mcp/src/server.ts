@@ -68,6 +68,7 @@ export class ContextOsMcpServer {
     this.ctx = {
       cwd,
       projectRoot,
+      dbPath,
       project,
       projectRepo,
       taskRepo,

@@ -1,4 +1,6 @@
 import * as path from 'node:path';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
 import type {
   Project,
   Task,
@@ -6,6 +8,7 @@ import type {
   TaskStatus,
 } from '@contextos/core';
 import {
+  createDatabaseConnection,
   ProjectRepository,
   TaskRepository,
   DecisionRepository,
@@ -19,6 +22,7 @@ import type { McpToolCallResult } from './protocol.js';
 export interface McpServerContext {
   cwd: string;
   projectRoot: string;
+  dbPath?: string;
   project: Project;
   projectRepo: ProjectRepository;
   taskRepo: TaskRepository;
@@ -28,14 +32,53 @@ export interface McpServerContext {
   gitClient: GitClient;
 }
 
+export function findTaskWithCrossStorageFallback(
+  ctx: McpServerContext,
+  opts: { taskId?: string; jiraId?: string }
+): { task: Task | null; repo: TaskRepository } {
+  let task: Task | null = null;
+  if (opts.taskId) {
+    task = ctx.taskRepo.findById(opts.taskId);
+    if (task) return { task, repo: ctx.taskRepo };
+  }
+  if (opts.jiraId) {
+    task = ctx.taskRepo.findByJiraId(ctx.project.id, opts.jiraId);
+    if (task) return { task, repo: ctx.taskRepo };
+  }
+
+  // Cross-storage fallback: check global DB
+  const globalDbPath = path.join(os.homedir(), '.contextos', 'context.db');
+  if (ctx.dbPath !== globalDbPath && fs.existsSync(globalDbPath)) {
+    try {
+      const globalDb = createDatabaseConnection({ dbPath: globalDbPath });
+      const globalTaskRepo = new TaskRepository(globalDb);
+      const found = opts.jiraId
+        ? globalTaskRepo.findByJiraId('', opts.jiraId)
+        : opts.taskId
+        ? globalTaskRepo.findById(opts.taskId)
+        : null;
+      if (found) return { task: found, repo: globalTaskRepo };
+    } catch {
+      // ignore
+    }
+  }
+
+  return { task: null, repo: ctx.taskRepo };
+}
+
 export function handleGetCurrentTask(
   args: { projectId?: string; jiraId?: string },
   ctx: McpServerContext
 ): McpToolCallResult {
   const projectId = args.projectId || ctx.project.id;
-  const activeTask = args.jiraId
-    ? ctx.taskRepo.findByJiraId(projectId, args.jiraId)
-    : ctx.taskRepo.findActiveByProject(projectId);
+  let activeTask: Task | null = null;
+
+  if (args.jiraId) {
+    const res = findTaskWithCrossStorageFallback(ctx, { jiraId: args.jiraId });
+    activeTask = res.task;
+  } else {
+    activeTask = ctx.taskRepo.findActiveByProject(projectId);
+  }
 
   if (!activeTask) {
     return {
@@ -81,16 +124,14 @@ export function handleSaveContext(
   },
   ctx: McpServerContext
 ): McpToolCallResult {
-  let task: Task | null = null;
+  let { task, repo } = findTaskWithCrossStorageFallback(ctx, {
+    taskId: args.taskId,
+    jiraId: args.jiraId,
+  });
 
-  if (args.taskId) {
-    task = ctx.taskRepo.findById(args.taskId);
-  }
-  if (!task && args.jiraId) {
-    task = ctx.taskRepo.findByJiraId(ctx.project.id, args.jiraId);
-  }
   if (!task) {
     task = ctx.taskRepo.findActiveByProject(ctx.project.id);
+    repo = ctx.taskRepo;
   }
 
   if (!task) {
@@ -122,7 +163,7 @@ export function handleSaveContext(
   }
 
   // Update existing task
-  const updated = ctx.taskRepo.update(task.id, {
+  const updated = repo.update(task.id, {
     title: args.title,
     goal: args.goal,
     status: args.status,
@@ -192,10 +233,8 @@ export function handleCreateHandoff(
   },
   ctx: McpServerContext
 ): McpToolCallResult {
-  let task = args.taskId
-    ? ctx.taskRepo.findById(args.taskId)
-    : args.jiraId
-    ? ctx.taskRepo.findByJiraId(ctx.project.id, args.jiraId)
+  let task = (args.taskId || args.jiraId)
+    ? findTaskWithCrossStorageFallback(ctx, { taskId: args.taskId, jiraId: args.jiraId }).task
     : ctx.taskRepo.findActiveByProject(ctx.project.id);
 
   if (!task) {

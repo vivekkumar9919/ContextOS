@@ -9,7 +9,7 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace=@contextos/core && npm run build --workspace=@contextos/git && npm run build --workspace=@contextos/storage && npm run build --workspace=@contextos/context-builder && npm run build --workspace=contextos",
+    "build": "npm run build --workspace=@contextos/core && npm run build --workspace=@contextos/git && npm run build --workspace=@contextos/storage && npm run build --workspace=@contextos/context-builder && npm run build --workspace=@contextos/mcp && npm run build --workspace=contextos",
     "test": "vitest run",
     "test:watch": "vitest"
   },
