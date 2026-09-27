@@ -8,19 +8,22 @@ let defaultInstance: Database.Database | null = null;
 
 export function resolveDbDir(projectRoot?: string, forceGlobal = false): string {
   if (forceGlobal) {
-    return path.join(os.homedir(), '.contextos');
+    return process.env.CONTEXTOS_HOME || path.join(os.homedir(), '.contextos');
   }
-  if (process.env.CONTEXTOS_HOME) {
-    return process.env.CONTEXTOS_HOME;
-  }
+  // Local DB takes highest priority when it exists
   if (projectRoot && fs.existsSync(path.join(projectRoot, '.contextos', 'context.db'))) {
     return path.join(projectRoot, '.contextos');
   }
   if (fs.existsSync(path.join(process.cwd(), '.contextos', 'context.db'))) {
     return path.join(process.cwd(), '.contextos');
   }
+  // Fall back to CONTEXTOS_HOME (for test isolation) or ~/.contextos
+  if (process.env.CONTEXTOS_HOME) {
+    return process.env.CONTEXTOS_HOME;
+  }
   return path.join(os.homedir(), '.contextos');
 }
+
 
 export function getDbPath(projectRoot?: string, forceGlobal = false): string {
   const dir = resolveDbDir(projectRoot, forceGlobal);

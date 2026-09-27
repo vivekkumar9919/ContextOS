@@ -70,8 +70,9 @@ export function getCliContext(
   const projectRoot = repoRoot || cwd;
   const projectName = detectProjectName(projectRoot);
 
+  const globalDir = process.env.CONTEXTOS_HOME || path.join(os.homedir(), '.contextos');
   const dbPath = forceGlobal
-    ? path.join(os.homedir(), '.contextos', 'context.db')
+    ? path.join(globalDir, 'context.db')
     : isLocal
     ? path.join(projectRoot, '.contextos', 'context.db')
     : getDbPath(projectRoot);
