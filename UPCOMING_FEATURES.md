@@ -104,3 +104,8 @@ Dynamically control how much context is included in a handoff based on the task 
 The long-term goal is simple:
 
 > **ContextOS should remember not only what your project knows, but why it knows it and where that knowledge came from.**
+
+---
+
+📖 **For technical architectures, schemas, and phased implementation roadmaps, see [FUTURE_PLAN.md](FUTURE_PLAN.md).**
+

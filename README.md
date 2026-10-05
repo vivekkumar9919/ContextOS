@@ -337,7 +337,8 @@ The developer decides what becomes durable project context.
 - Jira / Linear integration
 - More AI agent integrations
 
-👉 **[Read the full Upcoming Features & Vision Document](UPCOMING_FEATURES.md)**
+👉 **[Read the Upcoming Features Overview](UPCOMING_FEATURES.md)**  
+📐 **[Read the Deep Technical Architectural Plan & Roadmap](FUTURE_PLAN.md)**
 
 ---
 
@@ -383,11 +384,13 @@ Project → ContextOS ── Codex
 
 ## Documentation
 
+- [Future Technical Roadmap](FUTURE_PLAN.md)
 - [Upcoming Features & Vision](UPCOMING_FEATURES.md)
 - [MCP Guide](docs/MCP_GUIDE.md)
 - [Setup & Usage Guide](docs/SETUP_AND_USAGE_GUIDE.md)
 - [PRD](docs/PRD.md)
 - [Technical Requirements](docs/TRD.md)
+
 
 
 ---
