@@ -38,3 +38,4 @@ export const migration003 = {
       ('p-permissive', 'Standard Review', 'Any agent can bypass if explicitly requested by user', 'ANY_AGENT', '["*"]');
   `,
 };
+
