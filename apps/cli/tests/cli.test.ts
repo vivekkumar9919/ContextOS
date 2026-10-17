@@ -197,4 +197,128 @@ describe('@contextos/cli Test Suite', () => {
     expect(projectsOut).toContain('Payment Gateway Integration');
     expect(projectsOut).toContain('PAY-404');
   });
+
+  it('manages bypass policies via policy CLI commands', () => {
+    runCli(['init']);
+
+    // List default seed policies
+    const listOut = runCli(['policy', 'list']);
+    expect(listOut).toContain('Bypass Policies (4):');
+    expect(listOut).toContain('p-never');
+    expect(listOut).toContain('p-human-only');
+    expect(listOut).toContain('p-trusted-agents');
+    expect(listOut).toContain('p-permissive');
+
+    // Create custom policy
+    const createOut = runCli([
+      'policy',
+      'add',
+      'Deploy Policy',
+      '--type',
+      'SPECIFIC_AGENTS',
+      '--agents',
+      'release-bot,devops-agent',
+      '--description',
+      'Allow release bots only',
+    ]);
+    expect(createOut).toContain('Bypass Policy created');
+    expect(createOut).toContain('Deploy Policy');
+    expect(createOut).toContain('release-bot, devops-agent');
+  });
+
+  it('manages guardrails lifecycle and enforcement via guardrail CLI commands', () => {
+    runCli(['init']);
+
+    // 1. Add invariant guardrail
+    const addInvOut = runCli([
+      'guardrail',
+      'add',
+      'Never commit hardcoded secrets or API keys',
+      '--title',
+      'No Hardcoded Secrets',
+      '--type',
+      'INVARIANT',
+      '--severity',
+      'BLOCKER',
+      '--policy',
+      'p-human-only',
+    ]);
+    expect(addInvOut).toContain('Guardrail created');
+    expect(addInvOut).toContain('No Hardcoded Secrets');
+    expect(addInvOut).toContain('INVARIANT');
+
+    // 2. Add action block guardrail for .env files
+    const addBlockOut = runCli([
+      'guardrail',
+      'add',
+      'Never touch env configuration files',
+      '--title',
+      'Protect Env Files',
+      '--type',
+      'ACTION_BLOCK',
+      '--pattern',
+      '\\.env.*',
+      '--severity',
+      'BLOCKER',
+      '--policy',
+      'p-human-only',
+      '--remediation',
+      'Use .env.example or vault instead',
+    ]);
+    expect(addBlockOut).toContain('Protect Env Files');
+    expect(addBlockOut).toContain('ACTION_BLOCK');
+
+    // 3. List guardrails
+    const listOut = runCli(['guardrail', 'list']);
+    expect(listOut).toContain('Active Guardrails');
+    expect(listOut).toContain('No Hardcoded Secrets');
+    expect(listOut).toContain('Protect Env Files');
+
+    // 4. Check safe files -> PASS
+    const passCheck = runCli([
+      'guardrail',
+      'check',
+      '--files',
+      'src/index.ts,README.md',
+      '--agent',
+      'codex',
+    ]);
+    expect(passCheck).toContain('PASS:');
+
+    // 5. Check blocked file -> BLOCKED (throws exit code 1)
+    expect(() => {
+      runCli([
+        'guardrail',
+        'check',
+        '--files',
+        '.env.production',
+        '--agent',
+        'codex',
+      ]);
+    }).toThrow();
+
+    // 6. Check blocked file with human bypass -> PASS
+    const bypassCheck = runCli([
+      'guardrail',
+      'check',
+      '--files',
+      '.env.production',
+      '--agent',
+      'human',
+      '--bypass',
+      'Emergency production rotation',
+    ]);
+    expect(bypassCheck).toContain('PASS:');
+    expect(bypassCheck).toContain('bypassed rule(s)');
+
+    // Extract ID of the invariant guardrail to remove it
+    const idMatch = addInvOut.match(/Guardrail created \[([^\]]+)\]/);
+    expect(idMatch).toBeTruthy();
+    const guardrailId = idMatch![1];
+
+    // 7. Remove guardrail
+    const removeOut = runCli(['guardrail', 'remove', guardrailId]);
+    expect(removeOut).toContain(`Guardrail '${guardrailId}' removed successfully.`);
+  });
 });
+
