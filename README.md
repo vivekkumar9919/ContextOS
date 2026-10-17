@@ -136,9 +136,9 @@ Current work, progress, checklists, and open items.
 
 Important architectural and implementation decisions, including superseded decisions.
 
-### Invariants
+### Invariants & Guardrails
 
-Rules and constraints that should not be accidentally violated.
+Rules, action blocks, and constraints that prevent accidental destructive actions, enforce architecture, and govern bypass privileges.
 
 ### Git Context
 
@@ -230,11 +230,13 @@ ContextOS currently provides:
 
 - Local SQLite context storage
 - Project and global context
-- MCP integration
-- CLI interface
+- MCP integration (15 native tools over stdio)
+- CLI interface (`init`, `status`, `task`, `decision`, `handoff`, `guardrail`, `policy`, `projects`, `clean`)
 - Task and checklist tracking
 - Architectural decisions / ADRs
 - Decision supersession and DAG validation
+- Hierarchical Guardrails Engine (`INVARIANT`, `ACTION_BLOCK`, `VERIFICATION_GATE`)
+- Decoupled, reusable Bypass Policies (`NEVER`, `HUMAN_ONLY`, `SPECIFIC_AGENTS`, `ANY_AGENT`)
 - Git context and diff tracking
 - Secret/noise filtering
 - Deterministic bounded handoffs
@@ -258,7 +260,7 @@ ContextOS stores:
 Task
 ├── Current progress
 ├── Decisions
-├── Constraints
+├── Constraints & Guardrails
 ├── Git changes
 └── Open questions
 ```
@@ -286,20 +288,21 @@ The updated state can be handed to another agent for review or debugging.
 ```text
 AI Coding Agent
       │
-      │ MCP / CLI
+      │ MCP (15 Tools) / CLI
       ↓
-┌──────────────────────┐
-│      ContextOS       │
-│                      │
-│ Context Builder      │
-│ Task State           │
-│ Decisions / ADRs     │
-│ Git Context          │
-│ Handoffs             │
-└──────────┬───────────┘
-           │
-           ↓
-      Local SQLite
+┌─────────────────────────────────┐
+│           ContextOS             │
+│                                 │
+│ Context Builder                 │
+│ Task State Machine              │
+│ Decisions / ADRs (DAG)          │
+│ Guardrails & Policies Engine    │
+│ Git Context & Diffs             │
+│ Bounded Handoffs                │
+└────────────────┬────────────────┘
+                 │
+                 ↓
+      SQLite (Local & Global)
 ```
 
 The context layer remains independent from any particular AI provider.

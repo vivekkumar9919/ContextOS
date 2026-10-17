@@ -353,6 +353,131 @@ contextos clean --all
 
 ---
 
+### 3.7 `contextos guardrail`
+**Description:** Manages hierarchical engineering guardrails, code invariants, action blockers, and verification gates. Evaluates regex/glob file patterns and shell commands against decoupled bypass policies.
+
+#### Subcommands
+
+#### 1. `contextos guardrail add`
+Registers a new guardrail.
+```bash
+# Add an architectural invariant rule
+contextos guardrail add "All SQL statements must use parameterized bindings" \
+  --title "SQL Injection Prevention" \
+  --type INVARIANT \
+  --severity BLOCKER \
+  --policy p-human-only
+
+# Add a pre-flight action block rule for sensitive file paths
+contextos guardrail add "Never touch production AWS credentials" \
+  --title "Protect AWS Credentials" \
+  --type ACTION_BLOCK \
+  --pattern ".*aws/credentials.*" \
+  --severity BLOCKER \
+  --policy p-never \
+  --remediation "Use IAM roles or AWS SSM Parameter Store"
+
+# Add a machine-wide global guardrail
+contextos guardrail add "Never commit private keys or certificates" \
+  --title "Block Private Keys" \
+  --type ACTION_BLOCK \
+  --pattern ".*id_rsa.*" \
+  --policy p-never \
+  --global
+```
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `rule` (arg1) | string | **Required** | The explicit guardrail rule or instruction |
+| `--title` | string | `rule.slice(0, 40)` | Short headline for the rule |
+| `--type` | string | `INVARIANT` | `INVARIANT`, `ACTION_BLOCK`, or `VERIFICATION_GATE` |
+| `--severity` | string | `BLOCKER` | `BLOCKER` (hard stop) or `WARNING` (audit log only) |
+| `--policy` | string | `p-human-only` | Reusable policy ID (`p-never`, `p-human-only`, `p-trusted-agents`, `p-permissive`, or custom) |
+| `--pattern` | string | `undefined` | Regex pattern tested against touched files or command strings |
+| `--remediation` | string | `undefined` | Guidance or suggested alternative when blocked |
+| `--global` | boolean | `false` | Save to machine-wide global storage (`~/.contextos/context.db`) |
+
+#### 2. `contextos guardrail list`
+Lists all active guardrails. When run inside a repository, displays both repository-local guardrails and inherited machine-wide global guardrails.
+```bash
+# List all active guardrails for current repository
+contextos guardrail list
+
+# Filter by type
+contextos guardrail list --type ACTION_BLOCK
+
+# View global guardrails only
+contextos guardrail list --global
+```
+
+#### 3. `contextos guardrail check`
+Evaluates touched files or shell commands against all active guardrails and bypass policies. Returns exit code 0 if permitted; exits with code 1 and violation details if blocked.
+```bash
+# Check files modified by an AI agent
+contextos guardrail check --files "src/index.ts,README.md" --agent "codex"
+
+# Check with human bypass reason (bypasses HUMAN_ONLY policies)
+contextos guardrail check --files ".env.local" --agent human --bypass "Emergency local debugging"
+
+# Check a bash command string
+contextos guardrail check --command "git push --force origin main" --agent "codex"
+```
+
+#### 4. `contextos guardrail remove`
+Removes a guardrail by ID.
+```bash
+contextos guardrail remove g-1f2c9046
+contextos guardrail remove g-32466ef1 --global
+```
+
+---
+
+### 3.8 `contextos policy`
+**Description:** Manages reusable bypass policies that define which agents or roles are permitted to bypass specific guardrail rules.
+
+#### Subcommands
+
+#### 1. `contextos policy list`
+Lists all registered bypass policies.
+```bash
+contextos policy list
+contextos policy list --global
+```
+
+#### 2. `contextos policy add`
+Creates a new reusable bypass policy profile.
+```bash
+contextos policy add "Release Bot Override" \
+  --type SPECIFIC_AGENTS \
+  --agents "release-bot,devops-agent" \
+  --description "Allows CI release bots to bypass changelog rules"
+```
+
+| Policy Type | Description |
+| :--- | :--- |
+| `NEVER` | Zero exceptions. Neither AI agents nor humans can bypass. |
+| `HUMAN_ONLY` | AI agents cannot self-exempt. Human confirmation required via terminal. |
+| `SPECIFIC_AGENTS` | Only designated models (e.g., `claude`, `antigravity`) can bypass with user reason. |
+| `ANY_AGENT` | Any agent can bypass if requested by user with documented rationale. |
+
+#### 3. `contextos policy update`
+Updates policy metadata, policy type, or allowed agents.
+```bash
+# Add a single agent to an existing policy
+contextos policy update p-ce9ca3e8 --add-agent "claude"
+
+# Replace entire allowed agents list
+contextos policy update p-ce9ca3e8 --agents "claude,antigravity,codex"
+```
+
+#### 4. `contextos policy remove`
+Deletes a custom policy.
+```bash
+contextos policy remove p-ce9ca3e8
+```
+
+---
+
 ## 4. Model Context Protocol (MCP) Server Guide
 
 ContextOS includes a built-in MCP server (`packages/mcp/dist/index.js`) communicating over `stdio` adhering to MCP specification `2024-11-05`.
@@ -454,15 +579,24 @@ Add to Antigravity's MCP configuration:
 
 ### 4.4 Tool Reference: When to Use & Descriptions
 
-ContextOS exposes **5 standard tools** over JSON-RPC:
+ContextOS exposes **15 standard tools** over JSON-RPC:
 
 | Tool Name | When to Use | Description |
 | :--- | :--- | :--- |
+| **`get_status`** | Status Overview | Returns consolidated project state, storage mode, git branch, task, and decisions. |
 | **`get_current_task`** | At session start | Agent reads active task goal, invariants, blockers, and completed checklist items. |
 | **`save_context`** | After completing work | Agent marks checklist items as completed, logs next remaining steps, or registers blockers. |
 | **`record_decision`** | Making architectural choices | Agent locks in architectural patterns, library selections, or supersedes older decisions. |
 | **`create_handoff`** | Session completion | Compiles bounded `latest.md` and timestamped archive for downstream handoff. |
 | **`get_git_context`** | Before editing code | Retrieves Git branch, modified files, and noise-filtered, secret-scanned diffs. |
+| **`get_guardrails`** | Pre-flight discovery | Discovers active local and inherited global invariants, action blockers, and bypass policies. |
+| **`check_guardrails`** | Pre/post-flight check | Evaluates files and commands against patterns and bypass policies. Hard-stops violations. |
+| **`record_guardrail`** | Registering invariants | Records an invariant, action blocker, or verification gate with a bypass policy. |
+| **`remove_guardrail`** | Decommissioning rules | Decommissions obsolete guardrail rules by ID. |
+| **`list_tasks`** | Task review | Lists all tasks for current project with status and Jira ticket tags. |
+| **`list_decisions`** | Architecture audit | Lists all active and superseded architectural decisions. |
+| **`list_projects`** | Multi-repo discovery | Lists all registered projects across local and global storage. |
+| **`clean_context`** | State reset | Safely cleans project tasks and decisions without corrupting other workspaces. |
 
 ---
 
@@ -593,6 +727,102 @@ ContextOS exposes **5 standard tools** over JSON-RPC:
 
 ---
 
+#### Tool 6: `get_guardrails`
+- **When to Use**: Call upon starting work to discover all active local and inherited machine-wide invariants, forbidden file patterns, and bypass rules.
+- **Input Parameters**:
+  ```json
+  {
+    "type": "INVARIANT | ACTION_BLOCK | VERIFICATION_GATE (optional)",
+    "includeGlobal": true
+  }
+  ```
+- **Example Response**:
+  ```json
+  {
+    "total": 2,
+    "guardrails": [
+      {
+        "id": "g-1f2c9046",
+        "title": "SQL Injection Prevention",
+        "rule": "All SQL statements must be prepared statements",
+        "type": "INVARIANT",
+        "severity": "BLOCKER",
+        "scope": "LOCAL",
+        "policyId": "p-human-only"
+      }
+    ]
+  }
+  ```
+
+---
+
+#### Tool 7: `check_guardrails`
+- **When to Use**: Mandatory pre-flight and post-flight check before modifying sensitive files or running commands.
+- **Input Parameters**:
+  ```json
+  {
+    "files": ["array of files about to be modified"],
+    "command": "string (optional shell command about to be run)",
+    "agentName": "codex | claude | antigravity",
+    "bypassReason": "string (optional user-provided justification)"
+  }
+  ```
+- **Example Response (Pass)**:
+  ```json
+  {
+    "allowed": true,
+    "violations": [],
+    "bypassed": false,
+    "summary": "All guardrails passed."
+  }
+  ```
+- **Example Response (Blocked)**:
+  ```json
+  {
+    "allowed": false,
+    "violations": [
+      {
+        "guardrailId": "g-a2bd7faf",
+        "title": "Protect AWS Credentials",
+        "severity": "BLOCKER",
+        "message": "File '.aws/credentials.json' matches protected pattern '.*aws/credentials.*'. Rule policy is 'NEVER'.",
+        "remediation": "Use IAM roles or AWS SSM Parameter Store"
+      }
+    ],
+    "bypassed": false,
+    "summary": "Action blocked by 1 guardrail(s)."
+  }
+  ```
+
+---
+
+#### Tool 8: `record_guardrail`
+- **When to Use**: Call to establish a new architectural invariant, action blocker, or verification gate for the project or globally.
+- **Input Parameters**:
+  ```json
+  {
+    "title": "string (required)",
+    "rule": "string (required: engineering rule or constraint)",
+    "type": "INVARIANT | ACTION_BLOCK | VERIFICATION_GATE",
+    "severity": "BLOCKER | WARNING",
+    "pattern": "string (regex pattern for files or commands)",
+    "remediation": "string (suggested alternative when blocked)",
+    "policyId": "string (e.g. p-never, p-human-only, p-trusted-agents)",
+    "global": false
+  }
+  ```
+
+---
+
+#### Tool 9: `remove_guardrail`
+- **When to Use**: Call to decommission an obsolete guardrail rule by ID.
+- **Input Parameters**:
+  ```json
+  {
+    "id": "string (required: guardrail ID)"
+  }
+  ```
+
 ## 5. End-to-End Multi-Agent Handoff Workflow Walkthrough
 
 Here is the exact real-world workflow between **Claude** (Architecture & Planning) and **Codex / Cursor** (Code Implementation):
@@ -702,7 +932,7 @@ workspace/                      # Your Project Repository
 ```bash
 npm test
 ```
-All **50 tests** across 7 test suites should report green (`✓ passed`).
+All **104 tests** across 9 test suites should report green (`✓ passed`).
 
 ### Q: How do I check or switch between Local and Global storage modes?
 **Answer:**

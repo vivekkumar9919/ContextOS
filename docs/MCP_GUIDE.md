@@ -210,7 +210,7 @@ claude mcp add contextos -- node /Users/YOUR_USER/Documents/projects/ContextOS/p
 
 ## 4. Complete MCP Tool Suite (100% Terminal CLI Parity)
 
-ContextOS exposes **11 standard tools** over MCP, ensuring that **every single action possible via terminal CLI commands can also be performed natively by AI agents via MCP in chat**:
+ContextOS exposes **15 standard tools** over MCP, ensuring that **every single action possible via terminal CLI commands can also be performed natively by AI agents via MCP in chat**:
 
 | MCP Tool | Terminal CLI Equivalent | When the Agent Uses It | Example Chat Prompt |
 | :--- | :--- | :--- | :--- |
@@ -221,6 +221,10 @@ ContextOS exposes **11 standard tools** over MCP, ensuring that **every single a
 | **`list_tasks`** | `contextos task list [--global]` | List all recorded tasks with their status, checklist progress, and Jira tickets | *"List all tasks in ContextOS with status 'IN_PROGRESS'."* |
 | **`record_decision`** | `contextos decision add / supersede` | Lock in architectural invariants with DAG cycle checks and supersession | *"Record decision in ContextOS: Title 'Use Redis for sessions', Rationale 'Low latency'."* |
 | **`list_decisions`** | `contextos decision list [--global]` | Query all active or superseded architectural decisions | *"List all active architectural decisions in ContextOS."* |
+| **`get_guardrails`** | `contextos guardrail list [--global]` | Discover active local and inherited machine-wide guardrails, patterns, and bypass rules | *"Call `get_guardrails` to inspect architectural invariants and blocked file patterns."* |
+| **`check_guardrails`**| `contextos guardrail check` | Mandatory pre-flight gate before editing files or running shell commands | *"Check if modifying `.env.local` or running `npm test` violates guardrails via `check_guardrails`."* |
+| **`record_guardrail`**| `contextos guardrail add` | Register an invariant, action blocker, or verification gate with a bypass policy | *"Record guardrail: 'Never modify migrations', type ACTION_BLOCK, pattern 'migrations/.*', policy 'p-human-only'."* |
+| **`remove_guardrail`**| `contextos guardrail remove` | Decommission an obsolete guardrail rule by ID | *"Remove guardrail 'g-1f2c9046' using `remove_guardrail`."* |
 | **`list_projects`** | `contextos projects [--global]` | Query all registered projects and their active tasks across storage | *"List all registered projects in ContextOS."* |
 | **`get_git_context`** | Git tree & diff inspection | Inspect branch name, modified/added/deleted files, and noise-filtered diffs | *"Call `get_git_context` to see what code changes have been made in this branch."* |
 | **`create_handoff`** | `contextos handoff` | Compile bounded Markdown brief to `.contextos/handoffs/latest.md` & archive | *"Compile a handoff for Claude review using ContextOS `create_handoff`."* |
