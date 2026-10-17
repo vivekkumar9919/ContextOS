@@ -297,4 +297,120 @@ export const MCP_TOOLS: McpTool[] = [
       required: ['target'],
     },
   },
+  {
+    name: 'get_guardrails',
+    description:
+      'Retrieves all active merged guardrails (cognitive invariants, action blocks, and verification gates) across local and machine-global storage (equivalent to `contextos guardrail list`).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        includeGlobal: {
+          type: 'boolean',
+          description: 'Whether to include machine-global guardrails (~/.contextos). Defaults to true.',
+        },
+        type: {
+          type: 'string',
+          enum: ['INVARIANT', 'ACTION_BLOCK', 'VERIFICATION_GATE'],
+          description: 'Optional filter by guardrail type',
+        },
+      },
+    },
+  },
+  {
+    name: 'record_guardrail',
+    description:
+      'Records a new permanent engineering guardrail or invariant in local or machine-global storage (equivalent to `contextos guardrail add`).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+          description: 'Short title for the guardrail (e.g. "Secret File Protection", "No Force Push")',
+        },
+        rule: {
+          type: 'string',
+          description: 'The exact rule description or invariant requirement',
+        },
+        type: {
+          type: 'string',
+          enum: ['INVARIANT', 'ACTION_BLOCK', 'VERIFICATION_GATE'],
+          description: 'Guardrail archetype: INVARIANT (cognitive guideline), ACTION_BLOCK (execution block), or VERIFICATION_GATE (pre-completion check)',
+        },
+        severity: {
+          type: 'string',
+          enum: ['BLOCKER', 'WARNING', 'INFO'],
+          description: 'Severity level (default: BLOCKER)',
+        },
+        pattern: {
+          type: 'string',
+          description: 'Optional regex pattern for commands or file paths (e.g. "\\.env.*" or "git\\\\s+push.*--force")',
+        },
+        remediation: {
+          type: 'string',
+          description: 'Actionable approved alternative explaining to the agent what to do instead upon violation',
+        },
+        policyId: {
+          type: 'string',
+          description: 'ID of the bypass policy (e.g. "p-never", "p-human-only", "p-trusted-agents", "p-permissive"). Defaults to "p-human-only".',
+        },
+        global: {
+          type: 'boolean',
+          description: 'If true, saves as a machine-wide global guardrail (~/.contextos/context.db) that applies to all repositories on the machine.',
+        },
+      },
+      required: ['title', 'rule'],
+    },
+  },
+  {
+    name: 'remove_guardrail',
+    description:
+      'Deletes an existing guardrail by ID from local or global storage (equivalent to `contextos guardrail remove`).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'string',
+          description: 'ID of the guardrail to delete (e.g. "g-101")',
+        },
+        global: {
+          type: 'boolean',
+          description: 'Whether the guardrail belongs to global storage (~/.contextos). Defaults to false.',
+        },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'check_guardrails',
+    description:
+      'Pre-flight check that validates a proposed command, file path, or task completion against active guardrails and bypass policies.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        command: {
+          type: 'string',
+          description: 'Terminal command proposed to run (e.g. "git push --force origin main")',
+        },
+        files: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'File paths proposed to create, modify, or delete (e.g. [".env.production", "src/auth.ts"])',
+        },
+        action: {
+          type: 'string',
+          enum: ['RUN_COMMAND', 'WRITE_FILE', 'COMPLETE_TASK'],
+          description: 'Action type being checked',
+        },
+        agentName: {
+          type: 'string',
+          description: 'Name of the agent attempting the action (e.g. "claude", "codex", "cursor", "antigravity")',
+        },
+        bypassReason: {
+          type: 'string',
+          description: 'Reason provided by the user if requesting a bypass of a non-critical guardrail',
+        },
+      },
+    },
+  },
 ];
+

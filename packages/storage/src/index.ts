@@ -5,3 +5,6 @@ export * from './repositories/task-repository.js';
 export * from './repositories/decision-repository.js';
 export * from './repositories/issue-repository.js';
 export * from './repositories/handoff-repository.js';
+export * from './repositories/bypass-policy-repository.js';
+export * from './repositories/guardrail-repository.js';
+

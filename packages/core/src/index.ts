@@ -6,3 +6,5 @@ export * from './models/decision.js';
 export * from './models/issue.js';
 export * from './models/file-change.js';
 export * from './models/handoff.js';
+export * from './models/guardrail.js';
+

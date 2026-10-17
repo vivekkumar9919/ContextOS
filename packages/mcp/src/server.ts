@@ -9,6 +9,8 @@ import {
   DecisionRepository,
   IssueRepository,
   HandoffRepository,
+  GuardrailRepository,
+  BypassPolicyRepository,
 } from '@contextos/storage';
 import { GitClient } from '@contextos/git';
 import type Database from 'better-sqlite3';
@@ -31,7 +33,12 @@ import {
   handleCreateHandoff,
   handleGetGitContext,
   handleCleanContext,
+  handleGetGuardrails,
+  handleRecordGuardrail,
+  handleRemoveGuardrail,
+  handleCheckGuardrails,
 } from './handlers.js';
+
 
 export interface McpServerOptions {
   cwd?: string;
@@ -77,6 +84,8 @@ export class ContextOsMcpServer {
     const decisionRepo = new DecisionRepository(this.db);
     const issueRepo = new IssueRepository(this.db);
     const handoffRepo = new HandoffRepository(this.db);
+    const guardrailRepo = new GuardrailRepository(this.db);
+    const policyRepo = new BypassPolicyRepository(this.db);
 
     const project = projectRepo.findOrCreate(projectName, projectRoot);
 
@@ -89,11 +98,14 @@ export class ContextOsMcpServer {
       decisionRepo,
       issueRepo,
       handoffRepo,
+      guardrailRepo,
+      policyRepo,
       gitClient,
       dbPath,
       isGlobal,
     };
   }
+
 
   public handleRequest(req: JsonRpcRequest): JsonRpcResponse | null {
     const { id, method, params } = req;
@@ -181,6 +193,19 @@ export class ContextOsMcpServer {
             case 'clean_context':
               toolResult = handleCleanContext(toolArgs, this.ctx);
               break;
+            case 'get_guardrails':
+              toolResult = handleGetGuardrails(toolArgs, this.ctx);
+              break;
+            case 'record_guardrail':
+              toolResult = handleRecordGuardrail(toolArgs, this.ctx);
+              break;
+            case 'remove_guardrail':
+              toolResult = handleRemoveGuardrail(toolArgs, this.ctx);
+              break;
+            case 'check_guardrails':
+              toolResult = handleCheckGuardrails(toolArgs, this.ctx);
+              break;
+
             default:
               return {
                 jsonrpc: '2.0',

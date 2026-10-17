@@ -718,3 +718,210 @@ describe('Group 11: Cross-repo local isolation', () => {
     expect(ids).toContain('ISO-GLOBAL01');
   });
 });
+
+// ═════════════════════════════════════════════════════════════════════════════
+// GROUP 12: Guardrails & Bypass Policies Integration
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('Group 12: Guardrails & Bypass Policies Integration', () => {
+  it('creates a global guardrail via CLI and reads it back via MCP get_guardrails', () => {
+    cli(
+      [
+        'guardrail',
+        'add',
+        'Never commit .env or secret files',
+        '--title',
+        'Secret Protection',
+        '--type',
+        'ACTION_BLOCK',
+        '--severity',
+        'BLOCKER',
+        '--pattern',
+        '\\.env.*',
+        '--policy',
+        'p-never',
+        '--remediation',
+        'Store secrets in environment variables',
+        '--global',
+      ],
+      { cwd: tmpRepo, home: tmpHome }
+    );
+
+    const mcpRes = mcpCall(globalServer, 'get_guardrails', {});
+    expect(mcpRes.total).toBeGreaterThanOrEqual(1);
+    const rules = mcpRes.guardrails.map((g: any) => g.title);
+    expect(rules).toContain('Secret Protection');
+  });
+
+  it('MCP check_guardrails enforces p-never policy (blocks agent even with bypass reason)', () => {
+    cli(
+      [
+        'guardrail',
+        'add',
+        'Never commit .env or secret files',
+        '--title',
+        'Secret Protection',
+        '--type',
+        'ACTION_BLOCK',
+        '--severity',
+        'BLOCKER',
+        '--pattern',
+        '\\.env.*',
+        '--policy',
+        'p-never',
+        '--remediation',
+        'Store secrets in environment variables',
+        '--global',
+      ],
+      { cwd: tmpRepo, home: tmpHome }
+    );
+
+    const res = mcpCall(globalServer, 'check_guardrails', {
+      files: ['.env.production'],
+      agentName: 'claude',
+      bypassReason: 'Emergency production hotfix',
+    });
+
+
+
+    expect(res.allowed).toBe(false);
+    expect(res.violations.length).toBe(1);
+    expect(res.violations[0].bypassed).toBe(false);
+    expect(res.violations[0].remediation).toBe('Store secrets in environment variables');
+  });
+
+  it('enforces p-trusted-agents: blocks untrusted agent (codex), permits trusted agent (claude) with reason', () => {
+    cli(
+      [
+        'guardrail',
+        'add',
+        'Migrations require generated client',
+        '--title',
+        'Prisma Generation Check',
+        '--type',
+        'ACTION_BLOCK',
+        '--severity',
+        'BLOCKER',
+        '--pattern',
+        'prisma\\s+migrate\\s+--skip-generate',
+        '--policy',
+        'p-trusted-agents',
+      ],
+      { cwd: tmpRepo, home: tmpHome }
+    );
+
+    // Codex tries to bypass -> BLOCKED
+    const codexCheck = mcpCall(localServer, 'check_guardrails', {
+      command: 'npx prisma migrate --skip-generate',
+      agentName: 'codex',
+      bypassReason: 'Need quick test',
+    });
+    expect(codexCheck.allowed).toBe(false);
+    expect(codexCheck.violations[0].bypassed).toBe(false);
+
+    // Claude (trusted) tries to bypass -> ALLOWED
+    const claudeCheck = mcpCall(localServer, 'check_guardrails', {
+      command: 'npx prisma migrate --skip-generate',
+      agentName: 'claude',
+      bypassReason: 'Generated artifacts verified manually',
+    });
+    expect(claudeCheck.allowed).toBe(true);
+    expect(claudeCheck.bypassed).toBe(true);
+  });
+
+  it('CLI guardrail check allows human bypass for p-human-only policy', () => {
+    cli(
+      [
+        'guardrail',
+        'add',
+        'Never execute git push --force on main',
+        '--title',
+        'No Force Push',
+        '--type',
+        'ACTION_BLOCK',
+        '--severity',
+        'BLOCKER',
+        '--pattern',
+        'git\\s+push.*--force',
+        '--policy',
+        'p-human-only',
+      ],
+      { cwd: tmpRepo, home: tmpHome }
+    );
+
+    // AI agent via MCP tries to bypass -> BLOCKED
+    const agentCheck = mcpCall(localServer, 'check_guardrails', {
+      command: 'git push origin main --force',
+      agentName: 'codex',
+      bypassReason: 'User told me to',
+    });
+    expect(agentCheck.allowed).toBe(false);
+
+    // Human via CLI with bypass rationale -> PASSES
+    const cliOut = cli(
+      [
+        'guardrail',
+        'check',
+        '--command',
+        'git push origin main --force',
+        '--bypass',
+        'Manual release hotfix approved by lead',
+      ],
+      { cwd: tmpRepo, home: tmpHome }
+    );
+    expect(cliOut).toMatch(/PASS/);
+  });
+
+  it('create_handoff automatically includes active INVARIANT guardrails in markdown brief', () => {
+    // Record an invariant guardrail
+    mcpCall(localServer, 'record_guardrail', {
+      title: 'Verify Webhook HMAC',
+      rule: 'All payment webhooks must verify HMAC-SHA256 signature',
+      type: 'INVARIANT',
+      severity: 'BLOCKER',
+      policyId: 'p-trusted-agents',
+      remediation: 'Call verifyHmacSignature(payload, headers)',
+    });
+
+    // Create task and trigger handoff
+    mcpCall(localServer, 'create_task', {
+      title: 'Payments Module',
+      goal: 'Stripe webhook receiver',
+      status: 'IN_PROGRESS',
+    });
+
+    const handoffRes = mcpCall(localServer, 'create_handoff', {
+      fromAgent: 'claude',
+      toAgent: 'codex',
+      targetPhase: 'implementation',
+    });
+
+    expect(handoffRes.markdown).toContain('## 🛡️ Active Architectural Guardrails & Invariants');
+    expect(handoffRes.markdown).toContain('Verify Webhook HMAC');
+    expect(handoffRes.markdown).toContain('All payment webhooks must verify HMAC-SHA256 signature');
+  });
+
+  it('removes guardrail and verifies disappearance from list', () => {
+    const recRes = mcpCall(localServer, 'record_guardrail', {
+      title: 'Temporary Check',
+      rule: 'Temp check rule',
+      type: 'INVARIANT',
+    });
+    const id = recRes.guardrail.id;
+
+    // Verify it exists
+    const listBefore = mcpCall(localServer, 'get_guardrails', {});
+    const idsBefore = listBefore.guardrails.map((g: any) => g.id);
+    expect(idsBefore).toContain(id);
+
+    // Remove via MCP
+    const delRes = mcpCall(localServer, 'remove_guardrail', { id });
+    expect(delRes.id).toBe(id);
+
+    // Verify it is gone
+    const listAfter = mcpCall(localServer, 'get_guardrails', {});
+    const idsAfter = listAfter.guardrails.map((g: any) => g.id);
+    expect(idsAfter).not.toContain(id);
+  });
+});
+

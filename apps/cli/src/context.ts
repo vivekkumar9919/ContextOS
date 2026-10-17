@@ -9,6 +9,8 @@ import {
   DecisionRepository,
   IssueRepository,
   HandoffRepository,
+  GuardrailRepository,
+  BypassPolicyRepository,
 } from '@contextos/storage';
 import { GitClient } from '@contextos/git';
 import type { Project, Task } from '@contextos/core';
@@ -31,6 +33,8 @@ export interface CliContext {
   decisionRepo: DecisionRepository;
   issueRepo: IssueRepository;
   handoffRepo: HandoffRepository;
+  guardrailRepo: GuardrailRepository;
+  policyRepo: BypassPolicyRepository;
   gitClient: GitClient;
   project: Project;
   activeTask: Task | null;
@@ -66,7 +70,12 @@ export function getCliContext(
   }
 
   const gitClient = new GitClient(cwd);
-  const repoRoot = gitClient.getRepoRoot();
+  let repoRoot: string | null = null;
+  try {
+    repoRoot = gitClient.getRepoRoot();
+  } catch {
+    repoRoot = null;
+  }
   const projectRoot = repoRoot || cwd;
   const projectName = detectProjectName(projectRoot);
 
@@ -83,6 +92,8 @@ export function getCliContext(
   const decisionRepo = new DecisionRepository(db);
   const issueRepo = new IssueRepository(db);
   const handoffRepo = new HandoffRepository(db);
+  const guardrailRepo = new GuardrailRepository(db);
+  const policyRepo = new BypassPolicyRepository(db);
 
   const project = projectRepo.findOrCreate(projectName, projectRoot);
   const activeTask = taskRepo.findActiveByProject(project.id);
@@ -98,8 +109,11 @@ export function getCliContext(
     decisionRepo,
     issueRepo,
     handoffRepo,
+    guardrailRepo,
+    policyRepo,
     gitClient,
     project,
     activeTask,
   };
 }
+

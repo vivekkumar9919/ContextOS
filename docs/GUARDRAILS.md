@@ -238,3 +238,4 @@ When `create_handoff` is called in ContextOS, the compiler automatically retriev
 ```
 
 Downstream agents (e.g. Codex receiving a handoff from Claude) are immediately aligned with company invariants before generating their first line of code.
+

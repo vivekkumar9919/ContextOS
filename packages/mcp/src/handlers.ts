@@ -7,6 +7,9 @@ import type {
   Decision,
   HandoffPhase,
   TaskStatus,
+  Guardrail,
+  GuardrailType,
+  GuardrailSeverity,
 } from '@contextos/core';
 import {
   ProjectRepository,
@@ -14,6 +17,8 @@ import {
   DecisionRepository,
   IssueRepository,
   HandoffRepository,
+  GuardrailRepository,
+  BypassPolicyRepository,
   createDatabaseConnection,
 } from '@contextos/storage';
 import { GitClient } from '@contextos/git';
@@ -29,6 +34,8 @@ export interface McpServerContext {
   decisionRepo: DecisionRepository;
   issueRepo: IssueRepository;
   handoffRepo: HandoffRepository;
+  guardrailRepo: GuardrailRepository;
+  policyRepo: BypassPolicyRepository;
   gitClient: GitClient;
   dbPath?: string;
   isGlobal?: boolean;
@@ -40,6 +47,8 @@ interface AlternateStorage {
   projectRepo: ProjectRepository;
   taskRepo: TaskRepository;
   decisionRepo: DecisionRepository;
+  guardrailRepo: GuardrailRepository;
+  policyRepo: BypassPolicyRepository;
 }
 
 /**
@@ -51,6 +60,8 @@ function getGlobalStorage(ctx: McpServerContext): {
   taskRepo: TaskRepository;
   decisionRepo: DecisionRepository;
   projectRepo: ProjectRepository;
+  guardrailRepo: GuardrailRepository;
+  policyRepo: BypassPolicyRepository;
   project: Project;
 } | null {
   const globalDir = process.env.CONTEXTOS_HOME || path.join(os.homedir(), '.contextos');
@@ -62,6 +73,8 @@ function getGlobalStorage(ctx: McpServerContext): {
       taskRepo: ctx.taskRepo,
       decisionRepo: ctx.decisionRepo,
       projectRepo: ctx.projectRepo,
+      guardrailRepo: ctx.guardrailRepo,
+      policyRepo: ctx.policyRepo,
       project: ctx.project,
     };
   }
@@ -77,6 +90,8 @@ function getGlobalStorage(ctx: McpServerContext): {
       taskRepo: new TaskRepository(db),
       decisionRepo: new DecisionRepository(db),
       projectRepo,
+      guardrailRepo: new GuardrailRepository(db),
+      policyRepo: new BypassPolicyRepository(db),
       project,
     };
   } catch {
@@ -98,6 +113,8 @@ function getAlternateStorage(ctx: McpServerContext): AlternateStorage | null {
         projectRepo: new ProjectRepository(db),
         taskRepo: new TaskRepository(db),
         decisionRepo: new DecisionRepository(db),
+        guardrailRepo: new GuardrailRepository(db),
+        policyRepo: new BypassPolicyRepository(db),
       };
     } catch {
       return null;
@@ -114,6 +131,8 @@ function getAlternateStorage(ctx: McpServerContext): AlternateStorage | null {
         projectRepo: new ProjectRepository(db),
         taskRepo: new TaskRepository(db),
         decisionRepo: new DecisionRepository(db),
+        guardrailRepo: new GuardrailRepository(db),
+        policyRepo: new BypassPolicyRepository(db),
       };
     } catch {
       return null;
@@ -122,6 +141,7 @@ function getAlternateStorage(ctx: McpServerContext): AlternateStorage | null {
 
   return null;
 }
+
 
 export function handleGetStatus(
   args: { includeGlobal?: boolean },
@@ -691,12 +711,27 @@ export function handleCreateHandoff(
     outputDir: handoffsDir,
   });
 
+  let handoffMarkdown = result.markdown;
+  const activeInvariants = ctx.guardrailRepo
+    ? ctx.guardrailRepo.findByProject(ctx.project.id, true).filter((g) => g.type === 'INVARIANT')
+    : [];
+
+  if (activeInvariants.length > 0) {
+    const guardrailSection = [
+      '\n\n## 🛡️ Active Architectural Guardrails & Invariants',
+      ...activeInvariants.map(
+        (g) => `- [${g.severity}] **${g.title}**: ${g.rule}${g.remediation ? ` *(Approved alternative: ${g.remediation})*` : ''}`
+      ),
+    ].join('\n');
+    handoffMarkdown += guardrailSection;
+  }
+
   ctx.handoffRepo.create({
     taskId: task.id,
     fromAgent: args.fromAgent,
     toAgent: args.toAgent,
     targetPhase: args.targetPhase,
-    markdownPayload: result.markdown,
+    markdownPayload: handoffMarkdown,
   });
 
   return {
@@ -708,7 +743,7 @@ export function handleCreateHandoff(
             handoffPath: result.latestPath,
             archivePath: result.archivePath,
             tokenCountEstimate: result.tokenCountEstimate,
-            markdown: result.markdown,
+            markdown: handoffMarkdown,
           },
           null,
           2
@@ -791,3 +826,178 @@ export function handleCleanContext(
     ],
   };
 }
+
+export function handleGetGuardrails(
+  args: {
+    includeGlobal?: boolean;
+    type?: GuardrailType;
+  },
+  ctx: McpServerContext
+): McpToolCallResult {
+  const includeGlobal = args.includeGlobal !== false;
+  let guardrails = ctx.guardrailRepo.findByProject(ctx.project.id, includeGlobal);
+
+  if (includeGlobal && !ctx.isGlobal) {
+    const globalStorage = getGlobalStorage(ctx);
+    if (globalStorage) {
+      const globalGuardrails = globalStorage.guardrailRepo.listAll({ scope: 'GLOBAL' });
+      const existingIds = new Set(guardrails.map((g) => g.id));
+      for (const gg of globalGuardrails) {
+        if (!existingIds.has(gg.id)) {
+          guardrails.push(gg);
+        }
+      }
+    }
+  }
+
+  if (args.type) {
+    guardrails = guardrails.filter((g) => g.type === args.type);
+  }
+
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify({ total: guardrails.length, guardrails }, null, 2),
+      },
+    ],
+  };
+}
+
+export function handleRecordGuardrail(
+  args: {
+    title: string;
+    rule: string;
+    type?: GuardrailType;
+    severity?: GuardrailSeverity;
+    pattern?: string;
+    remediation?: string;
+    policyId?: string;
+    global?: boolean;
+  },
+  ctx: McpServerContext
+): McpToolCallResult {
+  let targetRepo = ctx.guardrailRepo;
+  let projectId = ctx.project.id;
+  let scope: 'GLOBAL' | 'LOCAL' = 'LOCAL';
+  let storageNote = '';
+
+  if (args.global) {
+    const globalStorage = getGlobalStorage(ctx);
+    if (globalStorage) {
+      targetRepo = globalStorage.guardrailRepo;
+      projectId = '';
+      scope = 'GLOBAL';
+      storageNote = ' (saved as machine-wide global guardrail)';
+    } else {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ error: 'Could not open global storage. Ensure ~/.contextos exists.' }),
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  const guardrail = targetRepo.create({
+    projectId,
+    title: args.title,
+    rule: args.rule,
+    type: args.type || 'INVARIANT',
+    severity: args.severity || 'BLOCKER',
+    scope,
+    pattern: args.pattern,
+    remediation: args.remediation,
+    policyId: args.policyId || 'p-human-only',
+  });
+
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify(
+          {
+            message: `Guardrail '${guardrail.title}' recorded successfully${storageNote}.`,
+            guardrail,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+export function handleRemoveGuardrail(
+  args: {
+    id: string;
+    global?: boolean;
+  },
+  ctx: McpServerContext
+): McpToolCallResult {
+  let targetRepo = ctx.guardrailRepo;
+  if (args.global) {
+    const globalStorage = getGlobalStorage(ctx);
+    if (globalStorage) {
+      targetRepo = globalStorage.guardrailRepo;
+    }
+  }
+
+  const deleted = targetRepo.delete(args.id);
+  if (!deleted) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({ error: `Guardrail with ID '${args.id}' not found.` }),
+        },
+      ],
+      isError: true,
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify({ message: `Guardrail '${args.id}' removed successfully.`, id: args.id }, null, 2),
+      },
+    ],
+  };
+}
+
+export function handleCheckGuardrails(
+  args: {
+    command?: string;
+    files?: string[];
+    action?: string;
+    agentName?: string;
+    bypassReason?: string;
+  },
+  ctx: McpServerContext
+): McpToolCallResult {
+  const globalStorage = getGlobalStorage(ctx);
+  const result = ctx.guardrailRepo.checkGuardrails({
+    command: args.command,
+    files: args.files,
+    action: args.action,
+    agentName: args.agentName,
+    bypassReason: args.bypassReason,
+    isHuman: false,
+    projectId: ctx.project.id,
+    globalRepo: globalStorage ? globalStorage.guardrailRepo : undefined,
+  });
+
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify(result, null, 2),
+      },
+    ],
+  };
+}
+

@@ -64,14 +64,14 @@ describe('@contextos/mcp Test Suite', () => {
     expect(res?.result.capabilities.tools).toBeDefined();
   });
 
-  it('lists all 11 core tools via tools/list', () => {
+  it('lists all 15 core tools via tools/list', () => {
     const res = callServer({
       jsonrpc: '2.0',
       id: 2,
       method: 'tools/list',
     });
 
-    expect(res?.result.tools).toHaveLength(11);
+    expect(res?.result.tools).toHaveLength(15);
     const toolNames = res?.result.tools.map((t: any) => t.name);
     expect(toolNames).toContain('get_status');
     expect(toolNames).toContain('get_current_task');
@@ -84,7 +84,12 @@ describe('@contextos/mcp Test Suite', () => {
     expect(toolNames).toContain('create_handoff');
     expect(toolNames).toContain('get_git_context');
     expect(toolNames).toContain('clean_context');
+    expect(toolNames).toContain('get_guardrails');
+    expect(toolNames).toContain('record_guardrail');
+    expect(toolNames).toContain('remove_guardrail');
+    expect(toolNames).toContain('check_guardrails');
   });
+
 
   it('creates task via create_task and gets consolidated status via get_status', () => {
     // 1. Create a task explicitly
@@ -332,4 +337,111 @@ describe('@contextos/mcp Test Suite', () => {
     expect(handoffData.tokenCountEstimate).toBeGreaterThan(0);
     expect(fs.existsSync(handoffData.handoffPath)).toBe(true);
   });
+
+  it('manages guardrails via record_guardrail, get_guardrails, check_guardrails, and remove_guardrail', () => {
+    // 1. Record an INVARIANT guardrail
+    const recRes1 = callServer({
+      jsonrpc: '2.0',
+      id: 20,
+      method: 'tools/call',
+      params: {
+        name: 'record_guardrail',
+        arguments: {
+          title: 'All Endpoints Parameterized',
+          rule: 'All endpoints must use parameterized SQL',
+          type: 'INVARIANT',
+          severity: 'BLOCKER',
+          policyId: 'p-trusted-agents',
+        },
+      },
+    });
+    expect(recRes1?.result.isError).toBeFalsy();
+    const g1 = JSON.parse(recRes1?.result.content[0].text).guardrail;
+    expect(g1.id).toBeDefined();
+
+    // 2. Record an ACTION_BLOCK guardrail
+    const recRes2 = callServer({
+      jsonrpc: '2.0',
+      id: 21,
+      method: 'tools/call',
+      params: {
+        name: 'record_guardrail',
+        arguments: {
+          title: 'Protect Env Files',
+          rule: 'Never modify .env files',
+          type: 'ACTION_BLOCK',
+          severity: 'BLOCKER',
+          pattern: '\\.env.*',
+          policyId: 'p-never',
+        },
+      },
+    });
+    expect(recRes2?.result.isError).toBeFalsy();
+    const g2 = JSON.parse(recRes2?.result.content[0].text).guardrail;
+
+    // 3. get_guardrails
+    const getRes = callServer({
+      jsonrpc: '2.0',
+      id: 22,
+      method: 'tools/call',
+      params: {
+        name: 'get_guardrails',
+        arguments: {},
+      },
+    });
+    expect(getRes?.result.isError).toBeFalsy();
+    const listData = JSON.parse(getRes?.result.content[0].text);
+    expect(listData.total).toBeGreaterThanOrEqual(2);
+
+    // 4. check_guardrails with blocked file
+    const checkRes1 = callServer({
+      jsonrpc: '2.0',
+      id: 23,
+      method: 'tools/call',
+      params: {
+        name: 'check_guardrails',
+        arguments: {
+          files: ['.env.local'],
+          agentName: 'codex',
+        },
+      },
+    });
+    expect(checkRes1?.result.isError).toBeFalsy();
+    const checkData1 = JSON.parse(checkRes1?.result.content[0].text);
+    expect(checkData1.allowed).toBe(false);
+    expect(checkData1.violations.length).toBe(1);
+
+    // 5. check_guardrails with safe command
+    const checkRes2 = callServer({
+      jsonrpc: '2.0',
+      id: 24,
+      method: 'tools/call',
+      params: {
+        name: 'check_guardrails',
+        arguments: {
+          command: 'npm run test',
+          agentName: 'codex',
+        },
+      },
+    });
+    const checkData2 = JSON.parse(checkRes2?.result.content[0].text);
+    expect(checkData2.allowed).toBe(true);
+
+    // 6. remove_guardrail
+    const delRes = callServer({
+      jsonrpc: '2.0',
+      id: 25,
+      method: 'tools/call',
+      params: {
+        name: 'remove_guardrail',
+        arguments: {
+          id: g2.id,
+        },
+      },
+    });
+    expect(delRes?.result.isError).toBeFalsy();
+    const delData = JSON.parse(delRes?.result.content[0].text);
+    expect(delData.id).toBe(g2.id);
+  });
 });
+

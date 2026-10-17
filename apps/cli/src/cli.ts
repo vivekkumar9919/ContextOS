@@ -6,7 +6,10 @@ import { handleDecision } from './commands/decision.js';
 import { handleHandoff } from './commands/handoff.js';
 import { handleClean } from './commands/clean.js';
 import { handleProjects } from './commands/projects.js';
+import { handleGuardrail } from './commands/guardrail.js';
+import { handlePolicy } from './commands/policy.js';
 import { banner, colors } from './ui.js';
+
 
 export function printHelp(): void {
   console.log(banner());
@@ -44,12 +47,21 @@ export function printHelp(): void {
   console.log(`  ${colors.green('clean')} [--project|--all]`);
   console.log(`      Wipe the active project or remove local ContextOS files.\n`);
 
+  console.log(`  ${colors.green('guardrail')} <add|list|remove|check> [--global]`);
+  console.log(`      Manage engineering guardrails, invariants, action blocks, and verification gates.`);
+  console.log(`      Options: --title, --type, --severity, --pattern, --remediation, --policy, --command, --files, --agent, --bypass\n`);
+
+  console.log(`  ${colors.green('policy')} <list|add|update|remove> [--global]`);
+  console.log(`      Manage reusable bypass policies and agent permissions.`);
+  console.log(`      Options: --type, --agents, --add-agent, --description\n`);
+
   console.log(`  ${colors.green('mcp')}`);
   console.log(`      Start the Model Context Protocol (MCP) server over stdio for AI agents.\n`);
 
   console.log(`  ${colors.green('help')} | ${colors.green('--help')}`);
   console.log(`      Display this help documentation.\n`);
 }
+
 
 export async function runCli(argv: string[] = process.argv.slice(2)): Promise<void> {
   if (
@@ -98,8 +110,20 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
       files: { type: 'string' },
       old: { type: 'string' },
       new: { type: 'string' },
+      type: { type: 'string' },
+      severity: { type: 'string' },
+      pattern: { type: 'string' },
+      remediation: { type: 'string' },
+      policy: { type: 'string' },
+      command: { type: 'string' },
+      agent: { type: 'string' },
+      bypass: { type: 'string' },
+      agents: { type: 'string' },
+      addAgent: { type: 'string' },
+      description: { type: 'string' },
     },
     allowPositionals: true,
+
     strict: false,
   });
 
@@ -167,12 +191,39 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
       });
       break;
 
+    case 'guardrail':
+      handleGuardrail(subcommand || 'list', positionals[2], {
+        global: Boolean(values.global),
+        title: values.title as string,
+        type: values.type as string,
+        severity: values.severity as string,
+        pattern: values.pattern as string,
+        remediation: values.remediation as string,
+        policy: values.policy as string,
+        command: values.command as string,
+        files: values.files as string,
+        agent: values.agent as string,
+        bypass: values.bypass as string,
+      });
+      break;
+
+    case 'policy':
+      handlePolicy(subcommand || 'list', positionals[2], {
+        global: Boolean(values.global),
+        type: values.type as string,
+        agents: values.agents as string,
+        addAgent: values.addAgent as string,
+        description: values.description as string,
+      });
+      break;
+
     case 'mcp': {
       const { ContextOsMcpServer } = await import('@contextos/mcp');
       const server = new ContextOsMcpServer();
       server.startStdio();
       break;
     }
+
 
     default:
       console.error(colors.red(`Unknown command: '${command}'`));
