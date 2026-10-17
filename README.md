@@ -384,12 +384,14 @@ Project → ContextOS ── Codex
 
 ## Documentation
 
+- [Guardrails & Governance Engine](docs/GUARDRAILS.md)
 - [Future Technical Roadmap](docs/FUTURE_PLAN.md)
 - [Upcoming Features & Vision](docs/UPCOMING_FEATURES.md)
 - [MCP Guide](docs/MCP_GUIDE.md)
 - [Setup & Usage Guide](docs/SETUP_AND_USAGE_GUIDE.md)
 - [PRD](docs/PRD.md)
 - [Technical Requirements](docs/TRD.md)
+
 
 
 
